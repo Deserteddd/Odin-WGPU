@@ -9,35 +9,15 @@ OS :: struct {
 	initialized: bool,
 }
 
-file_buffer_capacity :: 1 << 20
-file_buffer: [file_buffer_capacity]u8
+file_buffer: [dynamic]u8
 last_loaded_file: []u8
 
 // Install OS-level hooks (resize listener).
 os_init :: proc() {
-	ok := js.add_window_event_listener(.Resize, nil, size_callback)
-	assert(ok)
-}
-
-@(export)
-get_file_buffer_ptr :: proc() -> rawptr {
-	return &file_buffer[0]
-}
-
-@(export)
-get_file_buffer_capacity :: proc() -> int {
-	return len(file_buffer)
-}
-
-@(export)
-on_file_loaded :: proc(length: int) {
-	length := length
-	if length > len(file_buffer) {
-		length = len(file_buffer)
-	}
-	last_loaded_file = file_buffer[:length]
-	fmt.println("Loaded file bytes:", length)
-	fmt.println(string(last_loaded_file))
+	ok := js.add_window_event_listener(.Resize, nil, size_callback);      assert(ok)
+    ok =  js.add_window_event_listener(.Mouse_Move, nil, mouse_callback); assert(ok)
+    ok =  js.add_window_event_listener(.Mouse_Down, nil, mb_callback);    assert(ok)
+    ok =  js.add_window_event_listener(.Mouse_Up, nil, mb_callback);      assert(ok)
 }
 
 // NOTE: frame loop is done by the runtime.js repeatedly calling `step`.
@@ -52,6 +32,7 @@ step :: proc(dt: f32) -> bool {
 	if !state.os.initialized {
 		return true
 	}
+    update()
 	draw(dt)
 	return true
 }
@@ -81,6 +62,9 @@ os_get_surface :: proc(instance: wgpu.Instance) -> wgpu.Surface {
 os_fini :: proc "contextless" () {
 	context = runtime.default_context()
 	js.remove_window_event_listener(.Resize, nil, size_callback)
+    js.remove_window_event_listener(.Mouse_Move, nil, mouse_callback)
+    js.remove_window_event_listener(.Mouse_Down, nil, mb_callback)
+    js.remove_window_event_listener(.Mouse_Up, nil, mb_callback);
 	finish()
 }
 
@@ -88,4 +72,14 @@ os_fini :: proc "contextless" () {
 @(private="file")
 size_callback :: proc(e: js.Event) {
 	resize()
+}
+
+@(private="file")
+mouse_callback :: proc(e: js.Event) {
+    state.mouse_delta += {i32(e.mouse.movement.x), i32(e.mouse.movement.y)}
+}
+
+@(private="file")
+mb_callback :: proc(e: js.Event) {
+    state.lmb_down = 0 in e.mouse.buttons
 }

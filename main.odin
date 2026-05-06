@@ -4,6 +4,7 @@ import "base:runtime"
 import "core:fmt"
 import "vendor:wgpu"
 import "core:math/linalg"
+import "core:math"
 
 shader :: #load("shader.wgsl")
 
@@ -11,6 +12,8 @@ state: struct {
 	ctx: runtime.Context,
 	os:  OS,
     time_accum:      f32,
+    mouse_delta:     [2]i32,
+    lmb_down:        bool,
 	instance:        wgpu.Instance,
 	surface:         wgpu.Surface,
 	adapter:         wgpu.Adapter,
@@ -23,6 +26,7 @@ state: struct {
     vbo:             wgpu.Buffer,
     ubo:             wgpu.Buffer,
     ubo_bind_group:  wgpu.BindGroup,
+    camera:          Camera,
 }
 
 vec4 :: [4]f32
@@ -30,7 +34,7 @@ vec3 :: [3]f32
 vec2 :: [2]f32
 
 Vertex :: struct {
-    pos: vec2,
+    pos: vec3,
     col: vec3,
 }
 
@@ -86,18 +90,8 @@ main :: proc() {
 				code  = string(shader),
 			},
 		})
-
-        vertices: []Vertex = {
-            {{0.0, 0.7}, {1, 0, 0}},
-            {{0.7, -0.7}, {0, 1, 0}},
-            {{-0.7, -0.7}, {0, 0, 1}},
-        }
-
-        state.vbo = wgpu.DeviceCreateBufferWithDataSlice(state.device, &{
-            label = "Triangle buf",
-            usage = {.Vertex}
-        }, vertices); assert(state.vbo != nil)
-
+        create_grid(10)
+        create_orbital_camera()
         state.ubo = wgpu.DeviceCreateBufferWithDataTyped(state.device, &{
             label = "ubo",
             usage = {.Uniform, .CopyDst}
@@ -144,8 +138,8 @@ main :: proc() {
                     arrayStride = size_of(Vertex),
                     attributeCount = 2,
                     attributes = raw_data([]wgpu.VertexAttribute{
-                        {format = .Float32x2, offset = 0, shaderLocation = 0},
-                        {format = .Float32x3, offset = size_of(vec2), shaderLocation = 1}
+                        {format = .Float32x3, offset = 0, shaderLocation = 0},
+                        {format = .Float32x3, offset = size_of(vec3), shaderLocation = 1}
                     })
                 }})
 			},
@@ -159,7 +153,7 @@ main :: proc() {
 				},
 			},
 			primitive = {
-				topology = .TriangleList,
+				topology = .LineList,
 
 			},
 			multisample = {
@@ -173,14 +167,113 @@ main :: proc() {
 	}
 }
 
+Camera :: struct {
+    target:         vec3,
+    distance:       f32,
+    min_distance:   f32,
+    max_distance:   f32,
+    yaw:            f32,
+    pitch:          f32,
+    min_pitch:      f32,
+    max_pitch:      f32,
+    rotate_speed:   f32,
+    zoom_speed:     f32,
+    mouse_sense:    f32,
+}
+
+create_orbital_camera :: proc() {
+    state.camera = {
+        target = {0, 0, 0},
+        distance = 4,
+        min_distance = 6,
+        max_distance = 700,
+        yaw = 0,
+        pitch = 10,
+        min_pitch = -85,
+        max_pitch = 85,
+        rotate_speed = 4.5,
+        zoom_speed = 5.0,
+        mouse_sense = 0.4,
+    }
+}
+
+update_camera :: proc() {
+    state.camera.yaw   += f32(state.mouse_delta.x) * state.camera.mouse_sense
+    state.camera.pitch += f32(state.mouse_delta.y) * state.camera.mouse_sense
+    clamp_camera()
+}
+
+clamp_camera :: proc() {
+    state.camera.distance = math.clamp(state.camera.distance, state.camera.min_distance, state.camera.max_distance)
+    state.camera.pitch = math.clamp(state.camera.pitch, state.camera.min_pitch, state.camera.max_pitch)
+}
+
+camera_position :: proc() -> vec3 {
+    yaw := linalg.to_radians(state.camera.yaw)
+    pitch := linalg.to_radians(state.camera.pitch)
+
+    radius_xz := state.camera.distance * math.cos(pitch)
+    offset := vec3 {
+        radius_xz * math.sin(yaw),
+        state.camera.distance * math.sin(pitch),
+        radius_xz * math.cos(yaw),
+    }
+    return state.camera.target + offset
+}
+
+get_relative_mouse_movement :: proc() -> [2]i32 {
+    delta := state.mouse_delta
+    state.mouse_delta = 0
+    return delta
+}
+
+camera_view_matrix :: proc(camera: Camera) -> linalg.Matrix4f32 {
+    distance_matrix := linalg.matrix4_translate_f32(vec3{0, 0, -camera.distance})
+    pitch_matrix    := linalg.matrix4_rotate_f32(linalg.to_radians(camera.pitch), vec3{1, 0, 0})
+    yaw_matrix      := linalg.matrix4_rotate_f32(linalg.to_radians(camera.yaw), vec3{0, 1, 0})
+    target_matrix   := linalg.matrix4_translate_f32(-camera.target)
+    return distance_matrix * pitch_matrix * yaw_matrix * target_matrix
+}
+
+create_proj_matrix :: proc() -> linalg.Matrix4f32 {
+    aspect := f32(state.config.width) / f32(state.config.height)
+    return linalg.matrix4_perspective_f32(
+        linalg.to_radians(f32(90)), 
+        aspect, 
+        0.01, 
+        1000
+    )
+}
+
+create_grid :: proc(size: int) {
+    vertices: [dynamic]Vertex
+	half := size / 2
+	for i in -half..=half {
+		x := f32(i)
+		z := f32(i)
+		append(&vertices, Vertex {pos = {x, 0, f32(-half)}, col = {0.6, 0.6, 0.6}})
+		append(&vertices, Vertex {pos = {x, 0, f32(half)},  col = {0.6, 0.6, 0.6}})
+
+		append(&vertices, Vertex {pos = {f32(-half), 0, z}, col = {0.6, 0.6, 0.6}})
+		append(&vertices, Vertex {pos = {f32(half), 0, z},  col = {0.6, 0.6, 0.6}})
+	}
+
+    state.vbo = wgpu.DeviceCreateBufferWithDataSlice(state.device, &{
+        label = "Triangle buf",
+        usage = {.Vertex}
+    }, vertices[:]); assert(state.vbo != nil)
+}
+
 // Reconfigure the surface after a resize or swapchain loss.
 resize :: proc "c" () {
 	context = state.ctx
 	state.config.width, state.config.height = os_get_framebuffer_size()
 	wgpu.SurfaceConfigure(state.surface, &state.config)
-    aspect := f32(state.config.width) / f32(state.config.height)
-    proj := linalg.matrix4_infinite_perspective_f32(linalg.to_radians(f32(90)), aspect, 0.01)
-    wgpu.QueueWriteBuffer(state.queue, state.ubo, 0, &proj, size_of(proj))
+}
+
+update :: proc() {
+    if state.lmb_down do update_camera()
+    state.mouse_delta = 0;
 }
 
 // Render one frame: acquire surface texture, encode commands, submit, present.
@@ -218,18 +311,23 @@ draw :: proc "c" (dt: f32) {
 				loadOp     = .Clear,
 				storeOp    = .Store,
 				depthSlice = wgpu.DEPTH_SLICE_UNDEFINED,
-				clearValue = { 0.3, 0.2, 0.2, 1 },
+				clearValue = { 0.2, 0.2, 0.2, 1 },
 			},
 		},
 	)
+
 	wgpu.RenderPassEncoderSetPipeline(render_pass_encoder, state.pipeline)
-    aspect := f32(state.config.width) / f32(state.config.height)
-    proj := linalg.matrix4_infinite_perspective_f32(linalg.to_radians(f32(90)), aspect, 0.01)
-    proj *= linalg.matrix4_rotate(state.time_accum, vec3{0, 0, 1})
-    wgpu.QueueWriteBuffer(state.queue, state.ubo, 0, &proj, size_of(proj))
+
+    proj := create_proj_matrix()
+    view := camera_view_matrix(state.camera)
+    vp := proj * view
+    wgpu.QueueWriteBuffer(state.queue, state.ubo, 0, &vp, size_of(vp))
+
     wgpu.RenderPassEncoderSetBindGroup(render_pass_encoder, 0, state.ubo_bind_group)
     wgpu.RenderPassEncoderSetVertexBuffer(render_pass_encoder, 0, state.vbo, 0, wgpu.BufferGetSize(state.vbo))
-	wgpu.RenderPassEncoderDraw(render_pass_encoder, vertexCount=3, instanceCount=1, firstVertex=0, firstInstance=0)
+
+    vertex_count := u32(wgpu.BufferGetSize(state.vbo) / size_of(Vertex))
+	wgpu.RenderPassEncoderDraw(render_pass_encoder, vertex_count, instanceCount=1, firstVertex=0, firstInstance=0)
 
 	wgpu.RenderPassEncoderEnd(render_pass_encoder)
 	wgpu.RenderPassEncoderRelease(render_pass_encoder)

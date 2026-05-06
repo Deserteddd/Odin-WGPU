@@ -7,37 +7,12 @@
 		<link rel="stylesheet" href="style.css">
 	</head>
 	<body id="body">
-        <button id="button">Open</button>
-		<input type="file" id="fileInput" />
-
 		<canvas id="wgpu-canvas"></canvas>
 		<script type="text/javascript" src="odin.js"></script>
 		<script type="text/javascript" src="wgpu.js"></script>
 		<script type="text/javascript">
 			const mem = new WebAssembly.Memory({ initial: 2000, maximum: 65536, shared: false });
 			const memInterface = new odin.WasmMemoryInterface();
-			const loadBtn = document.getElementById("button");
-			const fileInput = document.getElementById("fileInput");
-				loadBtn.addEventListener("click", () => {
-				fileInput.click(); // opens file dialog
-			});
-			fileInput.addEventListener("change", async (event) => {
-				const file = event.target.files && event.target.files[0];
-				if (!file || !memInterface.exports) {
-					return;
-				}
-
-				const exports = memInterface.exports;
-				const odinCtx = exports.default_context_ptr();
-				const bytes = new Uint8Array(await file.arrayBuffer());
-				const capacity = exports.get_file_buffer_capacity(odinCtx);
-				const bufferPtr = exports.get_file_buffer_ptr(odinCtx);
-				const length = Math.min(bytes.length, capacity);
-
-				new Uint8Array(memInterface.memory.buffer, bufferPtr, length).set(bytes.subarray(0, length));
-				exports.on_file_loaded(length, odinCtx);
-				fileInput.value = "";
-			});
 			memInterface.setMemory(mem);
 
 			const wgpuInterface = new odin.WebGPUInterface(memInterface);
