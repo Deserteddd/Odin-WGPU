@@ -34,13 +34,11 @@ Vertex :: struct {
     col: vec3,
 }
 
-
 // Entry point: initialize OS bindings and kick off async WebGPU setup.
 main :: proc() {
 	state.ctx = context
 
 	os_init()
-
 	state.instance = wgpu.CreateInstance(nil)
 	if state.instance == nil {
 		panic("WebGPU is not supported")
@@ -90,9 +88,9 @@ main :: proc() {
 		})
 
         vertices: []Vertex = {
-            {{0.0, 0.5}, {1, 0, 0}},
-            {{0.5, -0.5}, {0, 1, 0}},
-            {{-0.5, -0.5}, {0, 0, 1}},
+            {{0.0, 0.7}, {1, 0, 0}},
+            {{0.7, -0.7}, {0, 1, 0}},
+            {{-0.7, -0.7}, {0, 0, 1}},
         }
 
         state.vbo = wgpu.DeviceCreateBufferWithDataSlice(state.device, &{
@@ -174,7 +172,6 @@ main :: proc() {
 		os_run()
 	}
 }
-
 
 // Reconfigure the surface after a resize or swapchain loss.
 resize :: proc "c" () {
