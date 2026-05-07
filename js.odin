@@ -18,6 +18,7 @@ os_init :: proc() {
     ok =  js.add_window_event_listener(.Mouse_Move, nil, mouse_callback); assert(ok)
     ok =  js.add_window_event_listener(.Mouse_Down, nil, mb_callback);    assert(ok)
     ok =  js.add_window_event_listener(.Mouse_Up, nil, mb_callback);      assert(ok)
+    ok =  js.add_window_event_listener(.Wheel, nil, mwheel_callback);     assert(ok)
 }
 
 // NOTE: frame loop is done by the runtime.js repeatedly calling `step`.
@@ -82,4 +83,9 @@ mouse_callback :: proc(e: js.Event) {
 @(private="file")
 mb_callback :: proc(e: js.Event) {
     state.lmb_down = 0 in e.mouse.buttons
+}
+
+mwheel_callback :: proc(e: js.Event) {
+    state.camera.distance += f32(e.wheel.delta.y) * state.camera.zoom_speed
+    clamp_camera()
 }
