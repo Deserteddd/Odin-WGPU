@@ -18,7 +18,7 @@ Camera :: struct {
 }
 
 create_orbital_camera :: proc() {
-    state.camera = {
+    g.camera = {
         target = {0, 0, 0},
         distance = 10,
         min_distance = 0.2,
@@ -34,40 +34,40 @@ create_orbital_camera :: proc() {
 }
 
 update_camera :: proc() {
-    state.camera.yaw   += f32(state.mouse_delta.x) * state.camera.mouse_sense
-    state.camera.pitch += f32(state.mouse_delta.y) * state.camera.mouse_sense
+    g.camera.yaw   += f32(g.mouse_delta.x) * g.camera.mouse_sense
+    g.camera.pitch += f32(g.mouse_delta.y) * g.camera.mouse_sense
     clamp_camera()
 }
 
 clamp_camera :: proc() {
-    state.camera.distance = math.clamp(state.camera.distance, state.camera.min_distance, state.camera.max_distance)
-    state.camera.pitch = math.clamp(state.camera.pitch, state.camera.min_pitch, state.camera.max_pitch)
+    g.camera.distance = math.clamp(g.camera.distance, g.camera.min_distance, g.camera.max_distance)
+    g.camera.pitch = math.clamp(g.camera.pitch, g.camera.min_pitch, g.camera.max_pitch)
 }
 
 camera_position :: proc() -> vec3 {
-    yaw := linalg.to_radians(state.camera.yaw)
-    pitch := linalg.to_radians(state.camera.pitch)
+    yaw := linalg.to_radians(g.camera.yaw)
+    pitch := linalg.to_radians(g.camera.pitch)
 
-    radius_xz := state.camera.distance * math.cos(pitch)
+    radius_xz := g.camera.distance * math.cos(pitch)
     offset := vec3 {
         radius_xz * math.sin(yaw),
-        state.camera.distance * math.sin(pitch),
+        g.camera.distance * math.sin(pitch),
         radius_xz * math.cos(yaw),
     }
-    return state.camera.target + offset
+    return g.camera.target + offset
 }
 
 
-camera_view_matrix :: proc(camera: Camera) -> linalg.Matrix4f32 {
-    distance_matrix := linalg.matrix4_translate_f32(vec3{0, 0, -camera.distance})
-    pitch_matrix    := linalg.matrix4_rotate_f32(linalg.to_radians(camera.pitch), vec3{1, 0, 0})
-    yaw_matrix      := linalg.matrix4_rotate_f32(linalg.to_radians(camera.yaw), vec3{0, 1, 0})
-    target_matrix   := linalg.matrix4_translate_f32(-camera.target)
+camera_view_matrix :: proc() -> linalg.Matrix4f32 {
+    distance_matrix := linalg.matrix4_translate_f32(vec3{0, 0, -g.camera.distance})
+    pitch_matrix    := linalg.matrix4_rotate_f32(linalg.to_radians(g.camera.pitch), vec3{1, 0, 0})
+    yaw_matrix      := linalg.matrix4_rotate_f32(linalg.to_radians(g.camera.yaw), vec3{0, 1, 0})
+    target_matrix   := linalg.matrix4_translate_f32(-g.camera.target)
     return distance_matrix * pitch_matrix * yaw_matrix * target_matrix
 }
 
 create_proj_matrix :: proc() -> linalg.Matrix4f32 {
-    aspect := f32(state.config.width) / f32(state.config.height)
+    aspect := f32(g.r.config.width) / f32(g.r.config.height)
     return linalg.matrix4_perspective_f32(
         linalg.to_radians(f32(90)), 
         aspect, 

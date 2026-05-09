@@ -1955,8 +1955,8 @@ function odinSetupDefaultImports(wasmMemoryInterface, consoleElement, memory) {
 				return false;
 			},
 
-			// Writes a struct of type `Gamepad_State`, see `core/sys/wasm/js/events.odin`
-			get_gamepad_state: (gamepad_id, ep) => {
+			// Writes a struct of type `Gamepad_g`, see `core/sys/wasm/js/events.odin`
+			get_gamepad_g: (gamepad_id, ep) => {
 				let index = gamepad_id;
 				let gps = navigator.getGamepads();
 				if (0 <= index && index < gps.length) {

@@ -35,7 +35,7 @@ const ENUMS = {
 	PresentMode: [undefined, "fifo", "fifo-relaxed", "immediate", "mailbox", ],
 	TextureAspect: [undefined, "all", "stencil-only", "depth-only"],
 	DeviceLostReason: [undefined, "unknown", "destroyed", "instance-dropped", "failed-creation"],
-	BufferMapState: [undefined, "unmapped", "pending", "mapped"],
+	BufferMapg: [undefined, "unmapped", "pending", "mapped"],
 	OptionalBool: [false, true, undefined],
 
 	// WARN: used with indexOf to pass to WASM, if we would pass to JS, this needs to use official naming convention (not like Odin enums) like the ones above.
@@ -74,11 +74,11 @@ class WebGPUInterface {
 			ProgrammableStageDescriptor: [8 + this.mem.intSize*4, this.mem.intSize],
 			VertexBufferLayout: [16 + this.mem.intSize*2, 8],
 			VertexAttribute: [24, 8],
-			VertexState: [8 + this.mem.intSize*6, this.mem.intSize],
-			PrimitiveState: [24, 4],
-			MultisampleState: [16, 4],
-			StencilFaceState: [16, 4],
-			ColorTargetState: [24, 8],
+			Vertexg: [8 + this.mem.intSize*6, this.mem.intSize],
+			Primitiveg: [24, 4],
+			Multisampleg: [16, 4],
+			StencilFaceg: [16, 4],
+			ColorTargetg: [24, 8],
 			BlendComponent: [12, 4],
 			TexelCopyBufferLayout: [16, 8],
 			Origin3D: [12, 4],
@@ -755,9 +755,9 @@ class WebGPUInterface {
 
 	/**
 	 * @param {number} start
-	 * @returns {GPUVertexState}
+	 * @returns {GPUVertexg}
 	 */
-	VertexState(start) {
+	Vertexg(start) {
 		const off = this.struct(start);
 		off(4);
 
@@ -826,9 +826,9 @@ class WebGPUInterface {
 
 	/**
 	 * @param {number} start
-	 * @returns {GPUPrimitiveState}
+	 * @returns {GPUPrimitiveg}
 	 */
-	PrimitiveState(start) {
+	Primitiveg(start) {
 		const off = this.struct(start);
 		off(4);
 
@@ -854,19 +854,19 @@ class WebGPUInterface {
 		return {
 			label:        label,
 			layout:       layoutIdx > 0 ? this.pipelineLayouts.get(layoutIdx) : "auto",
-			vertex:       this.VertexState(off(this.sizes.VertexState)),
-			primitive:    this.PrimitiveState(off(this.sizes.PrimitiveState)),
-			depthStencil: this.DepthStencilStatePtr(off(4)),
-			multisample:  this.MultisampleState(off(this.sizes.MultisampleState)),
-			fragment:     this.FragmentStatePtr(off(4)),
+			vertex:       this.Vertexg(off(this.sizes.Vertexg)),
+			primitive:    this.Primitiveg(off(this.sizes.Primitiveg)),
+			depthStencil: this.DepthStencilgPtr(off(4)),
+			multisample:  this.Multisampleg(off(this.sizes.Multisampleg)),
+			fragment:     this.FragmentgPtr(off(4)),
 		};
 	}
 
 	/**
 	 * @param {number} ptr
-	 * @returns {?GPUDepthStencilState}
+	 * @returns {?GPUDepthStencilg}
 	 */
-	DepthStencilStatePtr(ptr) {
+	DepthStencilgPtr(ptr) {
 		const start = this.mem.loadPtr(ptr);
 		if (start == 0) {
 			return undefined;
@@ -879,8 +879,8 @@ class WebGPUInterface {
 			format:              this.enumeration("TextureFormat", off(4)),
 			depthWriteEnabled:   this.enumeration("OptionalBool", off(4)),
 			depthCompare:        this.enumeration("CompareFunction", off(4)),
-			stencilFront:        this.StencilFaceState(off(this.sizes.StencilFaceState)),
-			stencilBack:         this.StencilFaceState(off(this.sizes.StencilFaceState)),
+			stencilFront:        this.StencilFaceg(off(this.sizes.StencilFaceg)),
+			stencilBack:         this.StencilFaceg(off(this.sizes.StencilFaceg)),
 			stencilReadMask:     this.mem.loadU32(off(4)),
 			stencilWriteMask:    this.mem.loadU32(off(4)),
 			depthBias:           this.mem.loadI32(off(4)),
@@ -891,9 +891,9 @@ class WebGPUInterface {
 
 	/**
 	 * @param {number} start
-	 * @returns {GPUStencilFaceState}
+	 * @returns {GPUStencilFaceg}
 	 */
-	StencilFaceState(start) {
+	StencilFaceg(start) {
 		return {
 			compare:     this.enumeration("CompareFunction",  start + 0),
 			failOp:      this.enumeration("StencilOperation", start + 4),
@@ -904,9 +904,9 @@ class WebGPUInterface {
 
 	/**
 	 * @param {number} start
-	 * @returns {GPUMultisampleState}
+	 * @returns {GPUMultisampleg}
 	 */
-	MultisampleState(start) {
+	Multisampleg(start) {
 		return {
 			count:                  this.mem.loadU32(start + 4),
 			mask:                   this.mem.loadU32(start + 8),
@@ -916,9 +916,9 @@ class WebGPUInterface {
 
 	/**
 	 * @param {number} ptr
-	 * @returns {?GPUFragmentState}
+	 * @returns {?GPUFragmentg}
 	 */
-	FragmentStatePtr(ptr) {
+	FragmentgPtr(ptr) {
 		const start = this.mem.loadPtr(ptr);
 		if (start == 0) {
 			return undefined;
@@ -947,31 +947,31 @@ class WebGPUInterface {
 			targets: this.array(
 				this.mem.loadUint(off(this.mem.intSize)),
 				this.mem.loadPtr(off(4)),
-				this.ColorTargetState,
-				this.sizes.ColorTargetState[0],
+				this.ColorTargetg,
+				this.sizes.ColorTargetg[0],
 			),
 		};
 	}
 
 	/**
 	 * @param {number} start
-	 * @returns {GPUColorTargetState}
+	 * @returns {GPUColorTargetg}
 	 */
-	ColorTargetState(start) {
+	ColorTargetg(start) {
 		const off = this.struct(start);
 		off(4);
 		return {
 			format:    this.enumeration("TextureFormat", off(4)),
-			blend:     this.BlendStatePtr(off(4)),
+			blend:     this.BlendgPtr(off(4)),
 			writeMask: this.mem.loadU64(off(8)),
 		};
 	}
 
 	/**
 	 * @param {number} ptr
-	 * @returns {?GPUBlendState}
+	 * @returns {?GPUBlendg}
 	 */
-	BlendStatePtr(ptr) {
+	BlendgPtr(ptr) {
 		const start = this.mem.loadPtr(ptr);
 		if (start == 0) {
 			return undefined;
@@ -1313,9 +1313,9 @@ class WebGPUInterface {
 			 * @param {number} bufferIdx
 			 * @return {number}
 			 */
-			wgpuBufferGetMapState: (bufferIdx) => {
+			wgpuBufferGetMapg: (bufferIdx) => {
 				const buffer = this.buffers.get(bufferIdx);
-				return ENUMS.BufferMapState.indexOf(buffer.mapState);
+				return ENUMS.BufferMapg.indexOf(buffer.mapg);
 			},
 
 			/**

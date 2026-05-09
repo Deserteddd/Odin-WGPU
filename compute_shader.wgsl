@@ -1,7 +1,9 @@
-// A read-only storage buffer that stores and array of unsigned 32bit integers
-@group(0) @binding(0) var<storage, read> input: array<u32>;
-// This storage buffer can be read from and written to
-@group(0) @binding(1) var<storage, read_write> output: array<u32>;
+struct Particle {
+    pos: vec3<f32>,
+    _pad: f32,
+};
+
+@group(0) @binding(0) var<storage, read_write> particles: array<Particle>;
 
 // Tells wgpu that this function is a valid compute pipeline entry_point
 @compute
@@ -12,7 +14,7 @@ fn main(
     @builtin(global_invocation_id) global_invocation_id: vec3<u32>
 ) {
     let index = global_invocation_id.x;
-    let total = arrayLength(&input);
+    let total = arrayLength(&particles);
 
     // workgroup_size may not be a multiple of the array size so
     // we need to exit out a thread that would index out of bounds.
@@ -20,11 +22,12 @@ fn main(
         return;
     }
 
-    // a simple copy operation
-    let elem = input[global_invocation_id.x];
-    if elem >= 2147483648 {
-        output[global_invocation_id.x] = 32%elem;
-    } else {
-        output[global_invocation_id.x] = elem * 2;
-    }
+    let idx = global_invocation_id.x;
+    let angle = 0.003;
+    let s = sin(angle);
+    let c = cos(angle);
+    let x = particles[idx].pos.x;
+    let z = particles[idx].pos.z;
+    particles[idx].pos.x = x * c - z * s;
+    particles[idx].pos.z = x * s + z * c;
 }
