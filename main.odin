@@ -7,9 +7,9 @@ import "core:math/linalg"
 import "core:math"
 
 
-PARTICLES :: 1000*3*3
+PARTICLES :: 100000
 
-g := struct {
+g: struct {
 	ctx:                        runtime.Context,
 	os:                         OS,
     time_accum:                 f32,
@@ -17,9 +17,6 @@ g := struct {
     lmb_down:                   bool,
     camera:                     Camera,
     r:                          Renderer,
-	bg:                         wgpu.Color
-}{
-	bg = {0.35, 0.37, 0.39, 1.0}
 }
 
 
@@ -42,45 +39,13 @@ frame :: proc(dt: f32) {
 
     r_begin_frame() 
 
-    particle_count := u32(wgpu.BufferGetSize(g.r.particle_buffer) / size_of(Particle))
-	r_run_compute(particle_count)
-    r_draw_scene(particle_count)
+	r_run_compute(dt)
+    r_draw_scene()
 
     r_present()
 }
 
-setup_compute :: proc() {
-    r := &g.r
-    r.compute_module = wgpu.DeviceCreateShaderModule(r.device, &{
-        label = "Compute module",
-        nextInChain = &wgpu.ShaderSourceWGSL{
-            sType = .ShaderSourceWGSL,
-            code  = string(compute_shader),
-        },
-    })
 
-    r.compute_pipeline = wgpu.DeviceCreateComputePipeline(r.device, &{
-        label = "Compute pipeline",
-        compute = {
-            module = r.compute_module,
-            entryPoint = "main"
-        }
-    })
-
-    r.compute_bind_group = wgpu.DeviceCreateBindGroup(r.device, &{
-        label = "Compute bind group",
-        layout = wgpu.ComputePipelineGetBindGroupLayout(r.compute_pipeline, 0),
-        entryCount = 1,
-        entries = raw_data([]wgpu.BindGroupEntry{
-            {
-                binding = 0,
-                offset = 0,
-                size = wgpu.BufferGetSize(r.particle_buffer),
-                buffer = r.particle_buffer,
-            },
-        })
-    })
-}
 
 get_relative_mouse_movement :: proc() -> [2]i32 {
     delta := g.mouse_delta
@@ -108,58 +73,22 @@ create_grid :: proc(size: int) {
     }, vertices[:]); assert(g.r.vbo != nil)
 }
 
+import "core:math/rand"
 
 create_particles :: proc() {
 	particles := make([]Particle, PARTICLES)
     defer delete(particles)
 
-	hash_u32 :: proc(x: u32) -> u32 {
-		y := x
-		y ~= y >> 16
-		y *= u32(0x7feb352d)
-		y ~= y >> 15
-		y *= u32(0x846ca68b)
-		y ~= y >> 16
-		return y
-	}
-
-	to_unit :: proc(x: u32) -> f32 {
-		return f32(x) * (1.0 / f32(0xffffffff))
-	}
-
-	volume_size := f32(4)
-	side_f := math.pow_f32(f32(PARTICLES), 1.0/3.0)
-	side := int(math.ceil(side_f))
-	spacing := volume_size / f32(side)
-	jitter := spacing
-	half := volume_size * 0.5
-
-	i: int
-	for x in 0..<side {
-		for y in 0..<side {
-			for z in 0..<side {
-				if i >= len(particles) do break
-				idx := u32(i)
-				rx := (to_unit(hash_u32(idx*3 + 0)) - 0.5) * jitter
-				ry := (to_unit(hash_u32(idx*3 + 1)) - 0.5) * jitter
-				rz := (to_unit(hash_u32(idx*3 + 2)) - 0.5) * jitter
-
-				px := (f32(x)+0.5)*spacing - half + rx
-				py := (f32(y)+0.5)*spacing + ry
-				pz := (f32(z)+0.5)*spacing - half + rz
-
-				pos := vec3{
-					math.clamp(px, -half, half),
-					math.clamp(py, 0, volume_size),
-					math.clamp(pz, -half, half),
-				}
-
-				particles[i] = Particle{pos, 0}
-				i += 1
-			}
-		}
-	}
-
+    for i in 0..<PARTICLES {
+        rx := rand.float32()*10 - 5
+        ry := rand.float32()*2
+        rz := rand.float32()*10 - 5
+        particles[i] = Particle{
+            pos = {rx, ry, rz},
+            vel = {0, 0.2, 0},
+            life = 0
+        }
+    }
 	g.r.particle_buffer = wgpu.DeviceCreateBufferWithDataSlice(g.r.device, &{
 		label = "Particle buffer",
 		usage = {.Storage, .Vertex, .CopyDst}

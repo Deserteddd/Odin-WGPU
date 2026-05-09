@@ -12,11 +12,11 @@ OS :: struct {
 
 // Install OS-level hooks (resize listener).
 os_init :: proc() {
-	ok := js.add_window_event_listener(.Resize, nil, size_callback);      assert(ok)
+	ok := js.add_window_event_listener(.Resize, nil, size_callback);                   assert(ok)
 	ok =  js.add_event_listener("wgpu-canvas", .Mouse_Move, nil, mouse_move_callback); assert(ok)
-	ok =  js.add_window_event_listener(.Mouse_Down, nil, mouse_down_callback);         assert(ok)
-	ok =  js.add_window_event_listener(.Mouse_Up, nil, mouse_up_callback);             assert(ok)
-	ok =  js.add_window_event_listener(.Wheel, nil, mwheel_callback);                  assert(ok)
+	ok =  js.add_event_listener("wgpu-canvas", .Mouse_Down, nil, mouse_down_callback); assert(ok)
+	ok =  js.add_event_listener("wgpu-canvas", .Mouse_Up, nil, mouse_up_callback);     assert(ok)
+	ok =  js.add_event_listener("wgpu-canvas", .Wheel, nil, mwheel_callback);          assert(ok)
 }
 
 // NOTE: frame loop is done by the runtime.js repeatedly calling `step`.

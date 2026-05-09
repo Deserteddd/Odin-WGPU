@@ -1,9 +1,11 @@
 struct Particle {
     pos: vec3<f32>,
-    _pad: f32,
+    vel: vec3<f32>,
+    life: f32,
 };
 
 @group(0) @binding(0) var<storage, read_write> particles: array<Particle>;
+@group(0) @binding(1) var<uniform> dt: f32;
 
 // Tells wgpu that this function is a valid compute pipeline entry_point
 @compute
@@ -23,11 +25,6 @@ fn main(
     }
 
     let idx = global_invocation_id.x;
-    let angle = 0.003;
-    let s = sin(angle);
-    let c = cos(angle);
-    let x = particles[idx].pos.x;
-    let z = particles[idx].pos.z;
-    particles[idx].pos.x = x * c - z * s;
-    particles[idx].pos.z = x * s + z * c;
+
+    particles[idx].pos += particles[idx].vel * dt;
 }

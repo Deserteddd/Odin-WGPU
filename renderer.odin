@@ -3,8 +3,6 @@ package odin_wgpu
 import "core:fmt"
 import "vendor:wgpu"
 import "core:math/linalg"
-import mu "vendor:microui"
-import intr "base:intrinsics"
 
 
 gfx_shader      :: #load("gfx_shader.wgsl")
@@ -31,6 +29,7 @@ Renderer :: struct {
     ubo_bind_group:             wgpu.BindGroup,
 
     compute_module:             wgpu.ShaderModule,
+    compute_ubo:                wgpu.Buffer,
     compute_pipeline:           wgpu.ComputePipeline,
     compute_bind_group:         wgpu.BindGroup,
     particle_buffer:            wgpu.Buffer,
@@ -55,7 +54,9 @@ CameraUniform :: struct {
 
 Particle :: struct {
     pos: vec3,
-    _pad: f32
+    _pad: f32,
+    vel: vec3,
+    life: f32,
 }
 
 QuadVertex :: struct {
@@ -220,9 +221,11 @@ setup_gfx :: proc() {
                 {
                     stepMode = .Instance,
                     arrayStride = size_of(Particle),
-                    attributeCount = 1,
+                    attributeCount = 3,
                     attributes = raw_data([]wgpu.VertexAttribute{
                         {format = .Float32x3, offset = 0, shaderLocation = 1},
+                        {format = .Float32x3, offset = size_of(vec4), shaderLocation = 2},
+                        {format = .Float32,   offset = size_of(vec4)+size_of(vec3), shaderLocation = 3},
                     }),
                 },
             }),
@@ -260,13 +263,61 @@ setup_gfx :: proc() {
     }, quad_vertices[:]); assert(r.quad_vbo != nil)
 }
 
-r_run_compute :: proc(vertex_count: u32) {
+setup_compute :: proc() {
+    r := &g.r
+    r.compute_module = wgpu.DeviceCreateShaderModule(r.device, &{
+        label = "Compute module",
+        nextInChain = &wgpu.ShaderSourceWGSL{
+            sType = .ShaderSourceWGSL,
+            code  = string(compute_shader),
+        },
+    })
+
+    r.compute_pipeline = wgpu.DeviceCreateComputePipeline(r.device, &{
+        label = "Compute pipeline",
+        compute = {
+            module = r.compute_module,
+            entryPoint = "main"
+        }
+    })
+
+    r.compute_ubo = wgpu.DeviceCreateBufferWithDataTyped(r.device, &{
+        label = "compute_ubo",
+        usage = {.Uniform, .CopyDst}
+    }, f32(0)); assert(r.compute_ubo != nil)
+
+    r.compute_bind_group = wgpu.DeviceCreateBindGroup(r.device, &{
+        label = "Compute bind group",
+        layout = wgpu.ComputePipelineGetBindGroupLayout(r.compute_pipeline, 0),
+        entryCount = 2,
+        entries = raw_data([]wgpu.BindGroupEntry{
+            {
+                binding = 0,
+                offset = 0,
+                size = wgpu.BufferGetSize(r.particle_buffer),
+                buffer = r.particle_buffer,
+            },
+            {
+                binding = 1,
+                offset = 0,
+                size = wgpu.BufferGetSize(r.compute_ubo),
+                buffer = r.compute_ubo
+            }
+        })
+    }); assert(r.compute_bind_group != nil)
+}
+
+r_run_compute :: proc(dt: f32) {
 	r := &g.r
+    dt := dt
+    particle_count := u32(wgpu.BufferGetSize(g.r.particle_buffer) / size_of(Particle))
+	workgroup_count := (particle_count + 63) / 64
+
 	compute_pass := wgpu.CommandEncoderBeginComputePass(r.curr_encoder)
 
 	wgpu.ComputePassEncoderSetPipeline(compute_pass, r.compute_pipeline)
+	wgpu.QueueWriteBuffer(r.queue, r.compute_ubo, 0, &dt, size_of(f32))
 	wgpu.ComputePassEncoderSetBindGroup(compute_pass, 0, r.compute_bind_group)
-	workgroup_count := (vertex_count + 63) / 64
 	wgpu.ComputePassEncoderDispatchWorkgroups(compute_pass, workgroup_count, 1, 1)
 
 	wgpu.ComputePassEncoderEnd(compute_pass)
@@ -301,11 +352,6 @@ r_begin_frame :: proc() -> bool {
 	return true
 }
 
-r_submit :: proc() {
-
-}
-
-
 r_resize :: proc() {
 	r := &g.r
 
@@ -334,7 +380,7 @@ r_present :: proc() {
 
 }
 
-r_draw_scene :: proc(particle_count: u32) {
+r_draw_scene :: proc() {
 	r := &g.r
 
 	r.curr_pass = wgpu.CommandEncoderBeginRenderPass(r.curr_encoder, &{
@@ -364,6 +410,7 @@ r_draw_scene :: proc(particle_count: u32) {
 	grid_vertex_count := u32(wgpu.BufferGetSize(r.vbo) / size_of(Vertex))
 	wgpu.RenderPassEncoderDraw(r.curr_pass, grid_vertex_count, instanceCount=1, firstVertex=0, firstInstance=0)
 
+    particle_count := u32(wgpu.BufferGetSize(g.r.particle_buffer) / size_of(Particle))
 	wgpu.RenderPassEncoderSetPipeline(r.curr_pass, r.particle_pipeline)
 	wgpu.RenderPassEncoderSetVertexBuffer(r.curr_pass, 0, r.quad_vbo, 0, wgpu.BufferGetSize(r.quad_vbo))
 	wgpu.RenderPassEncoderSetVertexBuffer(r.curr_pass, 1, r.particle_buffer, 0, wgpu.BufferGetSize(r.particle_buffer))
