@@ -1731,6 +1731,11 @@ function odinSetupDefaultImports(wasmMemoryInterface, consoleElement, memory) {
 				} else if (e instanceof TouchEvent) {
 					wmi.storeI64(off(8), e.changedTouches[0].clientX);
 					wmi.storeI64(off(8), e.changedTouches[0].clientY);
+                    if (e.changedTouches.length > 1) {
+                        wmi.storeI64(off(8), e.changedTouches[1].clientX);
+                        wmi.storeI64(off(8), e.changedTouches[1].clientY);
+                        console.log("Yeeesh")
+                    }
                 } else if (e instanceof KeyboardEvent) {
 					// Note: those strings are constructed
 					// on the native side from buffers that

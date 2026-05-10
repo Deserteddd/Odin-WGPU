@@ -15,6 +15,8 @@ OS :: struct {
 touch_last_pos: [2]i32
 @(private = "file")
 touch_last_pos_valid: bool
+@(private = "file")
+pinch: bool
 
 // Install OS-level hooks (resize listener).
 os_init :: proc() {
@@ -39,7 +41,6 @@ os_init :: proc() {
 // Mark the OS loop as ready so `step` begins rendering.
 os_run :: proc() {
 	g.os.initialized = true
-	g.running = true
 }
 
 // Runtime callback: called every tick from JS to drive rendering.
@@ -57,18 +58,6 @@ step :: proc(dt: f32) -> bool {
 @(export)
 get_running_state :: proc() -> bool {
     return g.running
-}
-
-os_set_clipboard :: proc(_: rawptr, text: string) -> bool {
-	// TODO: Use browser APIs
-	clear(&g.os.clipboard)
-	append(&g.os.clipboard, text)
-	return true
-}
-
-os_get_clipboard :: proc(_: rawptr) -> (string, bool) {
-	// TODO: Use browser APIs
-	return string(g.os.clipboard[:]), true
 }
 
 // Query the canvas size in physical pixels (CSS size * device pixel ratio).
@@ -137,7 +126,7 @@ touch_move_callback :: proc(e: js.Event) {
 	current := [2]i32{i32(e.touch.client.x), i32(e.touch.client.y)}
 	if touch_last_pos_valid {
 		g.mouse_delta += {current[0] - touch_last_pos[0], current[1] - touch_last_pos[1]}
-
+        if e.touch.pinch do g.camera.distance += f32(g.mouse_delta.x)
 	}
 	touch_last_pos = current
 	touch_last_pos_valid = true

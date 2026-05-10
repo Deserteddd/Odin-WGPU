@@ -1,7 +1,5 @@
-html,
-body {
-	height: 100%;
-}
+
+html, body {margin: 0; height: 100%; overflow: hidden}
 
 html {
 	background-color: rgb(51, 51, 51);
@@ -16,15 +14,15 @@ body {
 
 .buttonGroup button {
 	position: absolute;
-	left: 1%;
+	left: 10px;
 	z-index: 1;
-	top: 12px;
+	top: 10px;
 	font-size: 24px;
 	font-family: monospace;
 	color: rgb(255, 255, 255);
 	background-color: rgb(31, 31, 31);
-	width: 100px;
-	height: 50px;
+	width: 80px;
+	height: 40px;
 	border: solid 2px rgb(122, 122, 122);
 	cursor: pointer;
 	transition: background-color 140ms ease, border-color 140ms ease, transform 140ms ease;
@@ -41,7 +39,7 @@ body {
 }
 
 #resetBtn {
-	top: 66px;
+	left: 100px;
 }
 
 #wgpu-canvas {
