@@ -14,11 +14,11 @@ body {
 	position: relative;
 }
 
-#button {
+.buttonGroup button {
 	position: absolute;
 	left: 1%;
-	top: 12px;
 	z-index: 1;
+	top: 12px;
 	font-size: 24px;
 	font-family: monospace;
 	color: rgb(255, 255, 255);
@@ -30,18 +30,18 @@ body {
 	transition: background-color 140ms ease, border-color 140ms ease, transform 140ms ease;
 }
 
-#button:hover {
+.buttonGroup button:hover {
 	background-color: rgb(72, 72, 72);
 	border-color: rgb(188, 188, 188);
 	transform: translateY(-1px);
 }
 
-#button:active {
+.buttonGroup button:active  {
 	transform: translateY(0);
 }
 
-#fileInput {
-	display: none;
+#resetBtn {
+	top: 66px;
 }
 
 #wgpu-canvas {

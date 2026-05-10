@@ -7,17 +7,29 @@
 		<link rel="stylesheet" href="style.css">
 	</head>
 	<body id="body">
+		<div class="buttonGroup">
+		<button id="playBtn">Pause</button>
+		<button id="resetBtn">Reset</button>
+		</div>
 		<canvas id="wgpu-canvas"></canvas>
 		<script type="text/javascript" src="odin.js"></script>
 		<script type="text/javascript" src="wgpu.js"></script>
 		<script type="text/javascript">
-			const mem = new WebAssembly.Memory({ initial: 2000, maximum: 65536, shared: false });
-			const memInterface = new odin.WasmMemoryInterface();
-			memInterface.setMemory(mem);
+			(async () => {
+				const mem = new WebAssembly.Memory({ initial: 2000, maximum: 65536, shared: false });
+				const memInterface = new odin.WasmMemoryInterface();
+				memInterface.setMemory(mem);
 
-			const wgpuInterface = new odin.WebGPUInterface(memInterface);
+				const wgpuInterface = new odin.WebGPUInterface(memInterface);
 
-			odin.runWasm("triangle.wasm", null, { wgpu: wgpuInterface.getInterface() }, memInterface, /*intSize=8*/);
+				await odin.runWasm("triangle.wasm", null, { wgpu: wgpuInterface.getInterface() }, memInterface, /*intSize=8*/);
+
+				const button = document.getElementById('playBtn');
+				setInterval(() => {
+					const isRunning = memInterface.exports.get_running_state();
+					button.textContent = isRunning ? "Pause" : "Play";
+				}, 16);
+			})();
 		</script>
 	</body>
 </html>

@@ -13,16 +13,21 @@ OS :: struct {
 // Install OS-level hooks (resize listener).
 os_init :: proc() {
 	ok := js.add_window_event_listener(.Resize, nil, size_callback);                   assert(ok)
+	ok =  js.add_window_event_listener(.Key_Down, nil, kb_callback);	assert(ok)
 	ok =  js.add_event_listener("wgpu-canvas", .Mouse_Move, nil, mouse_move_callback); assert(ok)
 	ok =  js.add_event_listener("wgpu-canvas", .Mouse_Down, nil, mouse_down_callback); assert(ok)
 	ok =  js.add_event_listener("wgpu-canvas", .Mouse_Up, nil, mouse_up_callback);     assert(ok)
 	ok =  js.add_event_listener("wgpu-canvas", .Wheel, nil, mwheel_callback);          assert(ok)
+	ok =  js.add_event_listener("playBtn", .Click, nil, pause_callback);          assert(ok)
+	ok =  js.add_event_listener("resetBtn", .Click, nil, reset_callback);          assert(ok)
 }
+
 
 // NOTE: frame loop is done by the runtime.js repeatedly calling `step`.
 // Mark the OS loop as ready so `step` begins rendering.
 os_run :: proc() {
 	g.os.initialized = true
+	g.running = true
 }
 
 // Runtime callback: called every tick from JS to drive rendering.
@@ -34,6 +39,11 @@ step :: proc(dt: f32) -> bool {
     update()
 	frame(dt)
 	return true
+}
+
+@(export)
+get_running_state :: proc() -> bool {
+    return g.running
 }
 
 os_set_clipboard :: proc(_: rawptr, text: string) -> bool {
@@ -106,4 +116,22 @@ mouse_up_callback :: proc(e: js.Event) {
 mwheel_callback :: proc(e: js.Event) {
     g.camera.distance += f32(e.wheel.delta.y) * g.camera.zoom_speed
     clamp_camera()
+}
+
+@(private="file")
+pause_callback :: proc(e: js.Event) {
+	g.running = !g.running
+}
+
+@(private="file")
+reset_callback :: proc(e: js.Event) {
+	g.reset = true
+}
+
+@(private="file")
+kb_callback :: proc(e: js.Event) {
+	switch e.key.code {
+		case "Space":
+			g.running = !g.running
+	}
 }

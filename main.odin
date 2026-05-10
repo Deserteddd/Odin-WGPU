@@ -10,13 +10,15 @@ import "core:math"
 PARTICLES :: 100000
 
 g: struct {
-	ctx:                        runtime.Context,
-	os:                         OS,
-    time_accum:                 f32,
-    mouse_delta:                [2]i32,
-    lmb_down:                   bool,
-    camera:                     Camera,
-    r:                          Renderer,
+	ctx:            runtime.Context,
+	os:             OS,
+    time_accum:     f32,
+    mouse_delta:    [2]i32,
+    lmb_down:       bool,
+    camera:         Camera,
+    r:              Renderer,
+    running:        bool,
+    reset:          bool,
 }
 
 
@@ -37,15 +39,20 @@ frame :: proc(dt: f32) {
     defer free_all(context.temp_allocator)
     g.time_accum += dt
 
-    r_begin_frame() 
+    r_begin_frame()
 
-	r_run_compute(dt)
+    dt := dt
+    if g.reset {
+        create_particles()
+        g.reset = false
+        dt = 0
+    }
+
+	if g.running do r_run_compute(dt)
     r_draw_scene()
 
     r_present()
 }
-
-
 
 get_relative_mouse_movement :: proc() -> [2]i32 {
     delta := g.mouse_delta
@@ -89,10 +96,15 @@ create_particles :: proc() {
             life = 0
         }
     }
-	g.r.particle_buffer = wgpu.DeviceCreateBufferWithDataSlice(g.r.device, &{
-		label = "Particle buffer",
-		usage = {.Storage, .Vertex, .CopyDst}
-	}, particles[:]); assert(g.r.particle_buffer != nil)
+
+    if g.r.particle_buffer == nil {
+        g.r.particle_buffer = wgpu.DeviceCreateBufferWithDataSlice(g.r.device, &{
+            label = "Particle buffer",
+            usage = {.Storage, .Vertex, .CopyDst}
+        }, particles[:]); assert(g.r.particle_buffer != nil)
+    } else {
+        wgpu.QueueWriteBuffer(g.r.queue, g.r.particle_buffer, 0, raw_data(particles[:]), size_of(Particle) * PARTICLES)
+    }
 }
 
 update :: proc() {
@@ -117,7 +129,6 @@ finish :: proc() {
 	wgpu.AdapterRelease(r.adapter)
 	wgpu.SurfaceRelease(r.surface)
 	wgpu.InstanceRelease(r.instance)
-
 }
 
 

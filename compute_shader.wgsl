@@ -27,4 +27,5 @@ fn main(
     let idx = global_invocation_id.x;
 
     particles[idx].pos += particles[idx].vel * dt;
+    particles[idx].life += dt;
 }

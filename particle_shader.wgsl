@@ -16,6 +16,7 @@ struct VertexInput {
 
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
+    @location(0) life: f32
 };
 
 @vertex
@@ -26,10 +27,11 @@ fn vs_main(input: VertexInput) -> VertexOutput {
     let size = 0.03;
     let world = input.pos + right * input.offset.x * size + up * input.offset.y * size;
     out.clip_position = camera.view_proj * vec4<f32>(world, 1);
+    out.life = input.life;
     return out;
 }
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    return vec4<f32>(1.0, 0.0, 1.0, 1.0);
+    return vec4<f32>(in.life, 0.0, 0.0, 1.0);
 }
