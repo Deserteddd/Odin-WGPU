@@ -15,8 +15,6 @@ OS :: struct {
 touch_last_pos: [2]i32
 @(private = "file")
 touch_last_pos_valid: bool
-@(private = "file")
-pinch: bool
 
 // Install OS-level hooks (resize listener).
 os_init :: proc() {
@@ -126,7 +124,6 @@ touch_move_callback :: proc(e: js.Event) {
 	current := [2]i32{i32(e.touch.client.x), i32(e.touch.client.y)}
 	if touch_last_pos_valid {
 		g.mouse_delta += {current[0] - touch_last_pos[0], current[1] - touch_last_pos[1]}
-        if e.touch.pinch do g.camera.distance += f32(g.mouse_delta.x)
 	}
 	touch_last_pos = current
 	touch_last_pos_valid = true
