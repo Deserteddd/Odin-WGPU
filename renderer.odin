@@ -307,9 +307,9 @@ setup_compute :: proc() {
     }); assert(r.compute_bind_group != nil)
 }
 
-r_run_compute :: proc(dt: f32) {
+r_run_compute :: proc() {
 	r := &g.r
-    dt := dt
+    dt := g.dt
     particle_count := u32(wgpu.BufferGetSize(g.r.particle_buffer) / size_of(Particle))
 	workgroup_count := (particle_count + 63) / 64
 

@@ -20,9 +20,9 @@ Camera :: struct {
 create_orbital_camera :: proc() {
     g.camera = {
         target = {0, 1, 0},
-        distance = 10,
+        distance = 40,
         min_distance = 0.2,
-        max_distance = 40,
+        max_distance = 80,
         yaw = 0,
         pitch = 40,
         min_pitch = -85,

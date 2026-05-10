@@ -1,3 +1,7 @@
+const G: f32 = 9.81;
+const FRICTION: f32 = 2.0;
+const DRAG: f32 = 3;
+
 struct Particle {
     pos: vec3<f32>,
     vel: vec3<f32>,
@@ -25,7 +29,42 @@ fn main(
     }
 
     let idx = global_invocation_id.x;
+    let p = &particles[idx];
 
-    particles[idx].pos += particles[idx].vel * dt;
-    particles[idx].life += dt;
+    p.life += dt;
+
+    // Gravity
+    if p.pos.y > 0.0 || p.vel.y > 0.0 {
+        p.vel.y -= G * dt;
+    }
+
+    // Apply drag everywhere (air + ground)
+    if p.vel.y > 0 {
+        let drag = exp(-DRAG * dt);
+        p.vel *= drag;
+    }
+
+    // Ground collision
+    if p.pos.y <= 0.0 {
+        p.pos.y = 0.0;
+
+        // Stop downward motion
+        if p.vel.y < 0.0 {
+            p.vel.y = 0.0;
+        }
+
+        // Ground friction only affects horizontal motion
+        let friction = exp(-FRICTION * dt);
+        p.vel.x *= friction;
+        p.vel.z *= friction;
+    }
+
+    // Integrate position
+    p.pos += p.vel * dt;
+
+    // Final ground clamp
+    if p.pos.y < 0.0 {
+        p.pos.y = 0.0;
+        p.vel.y = 0.0;
+    }
 }

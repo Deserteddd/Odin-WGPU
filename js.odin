@@ -36,8 +36,9 @@ step :: proc(dt: f32) -> bool {
 	if !g.os.initialized {
 		return true
 	}
+    g.dt = dt
     update()
-	frame(dt)
+	frame()
 	return true
 }
 
@@ -126,6 +127,7 @@ pause_callback :: proc(e: js.Event) {
 @(private="file")
 reset_callback :: proc(e: js.Event) {
 	g.reset = true
+    g.running = false
 }
 
 @(private="file")

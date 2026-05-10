@@ -24,7 +24,7 @@ fn vs_main(input: VertexInput) -> VertexOutput {
     var out: VertexOutput;
     let right = vec3<f32>(camera.view[0].x, camera.view[1].x, camera.view[2].x);
     let up    = vec3<f32>(camera.view[0].y, camera.view[1].y, camera.view[2].y);
-    let size = 0.03;
+    let size = 0.2;
     let world = input.pos + right * input.offset.x * size + up * input.offset.y * size;
     out.clip_position = camera.view_proj * vec4<f32>(world, 1);
     out.life = input.life;
@@ -33,5 +33,11 @@ fn vs_main(input: VertexInput) -> VertexOutput {
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    return vec4<f32>(in.life, 0.0, 0.0, 1.0);
+    let color = vec3<f32>(
+        max(1.0 - (in.life * in.life*0.04), 0.4),
+        max(1.0 - (in.life * in.life*0.08), 0.4),
+        max(1.0 - (in.life * in.life*0.12), 0.4),
+    );
+
+    return vec4<f32>(color, 1.0);
 }

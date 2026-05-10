@@ -11,8 +11,8 @@ PARTICLES :: 100000
 
 g: struct {
 	ctx:            runtime.Context,
+    dt:             f32,
 	os:             OS,
-    time_accum:     f32,
     mouse_delta:    [2]i32,
     lmb_down:       bool,
     camera:         Camera,
@@ -35,20 +35,12 @@ main :: proc() {
 	wgpu.InstanceRequestAdapter(g.r.instance, &{ compatibleSurface = g.r.surface }, { callback = on_adapter })
 }
 
-frame :: proc(dt: f32) {
+frame :: proc() {
     defer free_all(context.temp_allocator)
-    g.time_accum += dt
 
     r_begin_frame()
 
-    dt := dt
-    if g.reset {
-        create_particles()
-        g.reset = false
-        dt = 0
-    }
-
-	if g.running do r_run_compute(dt)
+	if g.running do r_run_compute()
     r_draw_scene()
 
     r_present()
@@ -80,20 +72,26 @@ create_grid :: proc(size: int) {
     }, vertices[:]); assert(g.r.vbo != nil)
 }
 
-import "core:math/rand"
+maybe_reset :: proc() {
+    if !g.reset do return
+    defer g.reset = false
+    create_particles()
+    g.dt = 0
+}
 
+import "core:math/rand"
 create_particles :: proc() {
 	particles := make([]Particle, PARTICLES)
     defer delete(particles)
 
     for i in 0..<PARTICLES {
-        rx := rand.float32()*10 - 5
-        ry := rand.float32()*2
-        rz := rand.float32()*10 - 5
+        rx := rand.float32_normal(5, 20)
+        ry := rand.float32_normal(10, 50)
+        ry = math.max(ry, 0.1)
+        rz := rand.float32_normal(5, 20)
+
         particles[i] = Particle{
-            pos = {rx, ry, rz},
-            vel = {0, 0.2, 0},
-            life = 0
+            vel = {rx, ry, rz},
         }
     }
 
@@ -110,6 +108,7 @@ create_particles :: proc() {
 update :: proc() {
     if g.lmb_down do update_camera()
     g.mouse_delta = 0;
+    maybe_reset()
 }
 
 
