@@ -10,16 +10,28 @@ OS :: struct {
     clipboard: [dynamic]byte
 }
 
+// Local tracking for touch movement deltas.
+@(private = "file")
+touch_last_pos: [2]i32
+@(private = "file")
+touch_last_pos_valid: bool
+
 // Install OS-level hooks (resize listener).
 os_init :: proc() {
-	ok := js.add_window_event_listener(.Resize, nil, size_callback);                   assert(ok)
-	ok =  js.add_window_event_listener(.Key_Down, nil, kb_callback);	assert(ok)
+	ok := js.add_window_event_listener(.Resize, nil, size_callback);      assert(ok)
+	ok =  js.add_window_event_listener(.Key_Down, nil, kb_callback);	  assert(ok)
+	ok =  js.add_event_listener("playBtn", .Click, nil, pause_callback);  assert(ok)
+	ok =  js.add_event_listener("resetBtn", .Click, nil, reset_callback); assert(ok)
+ 
+    // Mouse controls
 	ok =  js.add_event_listener("wgpu-canvas", .Mouse_Move, nil, mouse_move_callback); assert(ok)
 	ok =  js.add_event_listener("wgpu-canvas", .Mouse_Down, nil, mouse_down_callback); assert(ok)
 	ok =  js.add_event_listener("wgpu-canvas", .Mouse_Up, nil, mouse_up_callback);     assert(ok)
 	ok =  js.add_event_listener("wgpu-canvas", .Wheel, nil, mwheel_callback);          assert(ok)
-	ok =  js.add_event_listener("playBtn", .Click, nil, pause_callback);          assert(ok)
-	ok =  js.add_event_listener("resetBtn", .Click, nil, reset_callback);          assert(ok)
+    // Touch screen
+	ok =  js.add_event_listener("wgpu-canvas", .Touch_Start, nil, touch_start_callback);     assert(ok)
+	ok =  js.add_event_listener("wgpu-canvas", .Touch_End, nil, touch_end_callback); assert(ok)
+	ok =  js.add_event_listener("wgpu-canvas", .Touch_Move, nil, touch_move_callback); assert(ok)
 }
 
 
@@ -111,6 +123,30 @@ mouse_down_callback :: proc(e: js.Event) {
 @(private="file")
 mouse_up_callback :: proc(e: js.Event) {
 	g.lmb_down = 0 in e.mouse.buttons
+}
+
+@(private="file")
+touch_start_callback :: proc(e: js.Event) {
+    g.lmb_down = true
+	touch_last_pos = {i32(e.touch.client.x), i32(e.touch.client.y)}
+	touch_last_pos_valid = true
+}
+
+@(private="file")
+touch_move_callback :: proc(e: js.Event) {
+	current := [2]i32{i32(e.touch.client.x), i32(e.touch.client.y)}
+	if touch_last_pos_valid {
+		g.mouse_delta += {current[0] - touch_last_pos[0], current[1] - touch_last_pos[1]}
+
+	}
+	touch_last_pos = current
+	touch_last_pos_valid = true
+}
+
+@(private="file")
+touch_end_callback :: proc(e: js.Event) {
+    g.lmb_down = false
+	touch_last_pos_valid = false
 }
 
 @(private="file")

@@ -1686,6 +1686,7 @@ function odinSetupDefaultImports(wasmMemoryInterface, consoleElement, memory) {
 					wmi.storeF64(off(8), e.deltaZ);
 					wmi.storeU32(off(4), e.deltaMode);
 				} else if (e instanceof MouseEvent) {
+
 					wmi.storeI64(off(8), e.screenX);
 					wmi.storeI64(off(8), e.screenY);
 					wmi.storeI64(off(8), e.clientX);
@@ -1727,7 +1728,10 @@ function odinSetupDefaultImports(wasmMemoryInterface, consoleElement, memory) {
 						wmi.storeU8(off(1), !!e.isPrimary);
 					}
 
-				} else if (e instanceof KeyboardEvent) {
+				} else if (e instanceof TouchEvent) {
+					wmi.storeI64(off(8), e.changedTouches[0].clientX);
+					wmi.storeI64(off(8), e.changedTouches[0].clientY);
+                } else if (e instanceof KeyboardEvent) {
 					// Note: those strings are constructed
 					// on the native side from buffers that
 					// are filled later, so skip them
