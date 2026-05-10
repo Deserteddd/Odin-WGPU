@@ -18,10 +18,11 @@ touch_last_pos_valid: bool
 
 // Install OS-level hooks (resize listener).
 os_init :: proc() {
-	ok := js.add_window_event_listener(.Resize, nil, size_callback);      assert(ok)
-	ok =  js.add_window_event_listener(.Key_Down, nil, kb_callback);	  assert(ok)
-	ok =  js.add_event_listener("playBtn", .Click, nil, pause_callback);  assert(ok)
-	ok =  js.add_event_listener("resetBtn", .Click, nil, reset_callback); assert(ok)
+	ok := js.add_window_event_listener(.Resize, nil, size_callback);        assert(ok)
+	ok =  js.add_window_event_listener(.Key_Down, nil, key_down_callback);  assert(ok)
+	ok =  js.add_window_event_listener(.Key_Up, nil, key_up_callback);	    assert(ok)
+	ok =  js.add_event_listener("playBtn", .Click, nil, pause_callback);    assert(ok)
+	ok =  js.add_event_listener("resetBtn", .Click, nil, reset_callback);   assert(ok)
  
     // Mouse controls
 	ok =  js.add_event_listener("wgpu-canvas", .Mouse_Move, nil, mouse_move_callback); assert(ok)
@@ -137,12 +138,18 @@ touch_end_callback :: proc(e: js.Event) {
 
 @(private="file")
 mwheel_callback :: proc(e: js.Event) {
-    g.camera.distance += f32(e.wheel.delta.y) * g.camera.zoom_speed
+    if g.shift_down {
+        g.camera.target.y -= f32(e.wheel.delta.y) * g.camera.zoom_speed
+        if g.camera.target.y < 0 do g.camera.target.y = 0
+    } else {
+        g.camera.distance += f32(e.wheel.delta.y) * g.camera.zoom_speed
+    }
     clamp_camera()
 }
 
 @(private="file")
 pause_callback :: proc(e: js.Event) {
+    fmt.println(g.camera.distance, g.camera.target, g.camera.pitch)
 	g.running = !g.running
 }
 
@@ -153,9 +160,19 @@ reset_callback :: proc(e: js.Event) {
 }
 
 @(private="file")
-kb_callback :: proc(e: js.Event) {
+key_down_callback :: proc(e: js.Event) {
 	switch e.key.code {
 		case "Space":
 			g.running = !g.running
+        case "ShiftLeft", "ShiftRight":
+            g.shift_down = true
+	}
+}
+
+@(private="file")
+key_up_callback :: proc(e: js.Event) {
+	switch e.key.code {
+        case "ShiftLeft", "ShiftRight":
+            g.shift_down = false
 	}
 }

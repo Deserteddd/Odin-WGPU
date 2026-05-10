@@ -1,6 +1,6 @@
 const G: f32 = 9.81;
-const FRICTION: f32 = 2.0;
-const DRAG: f32 = 3;
+const FRICTION: f32 = 4.0;
+const PI: f32 = 3.14;
 
 struct Particle {
     pos: vec3<f32>,
@@ -29,6 +29,7 @@ fn main(
     }
 
     let idx = global_invocation_id.x;
+
     let p = &particles[idx];
 
     p.life += dt;
@@ -38,10 +39,25 @@ fn main(
         p.vel.y -= G * dt;
     }
 
-    // Apply drag everywhere (air + ground)
-    if p.vel.y > 0 {
-        let drag = exp(-DRAG * dt);
-        p.vel *= drag;
+    // Apply drag
+    let r = min(1, p.life/20);
+    let pressure = 1.225;
+    let cp = 0.47;
+    let a = PI * r * r;
+
+    let speed = length(p.vel);
+
+    if (speed > 0.0) {
+        let dragMagnitude = 0.5 * pressure * cp * a * speed * speed;
+
+        let dragDir = -normalize(p.vel);
+
+        let dragForce = dragDir * dragMagnitude;
+
+        // assuming particle mass = 1
+        let dragAccel = dragForce;
+
+        p.vel += dragAccel * dt;
     }
 
     // Ground collision

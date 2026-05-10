@@ -8,7 +8,7 @@ set /a INITIAL_MEMORY_BYTES=%INITIAL_MEMORY_PAGES% * %PAGE_SIZE%
 set /a MAX_MEMORY_BYTES=%MAX_MEMORY_PAGES% * %PAGE_SIZE%
 
 @echo on
-call odin.exe build . -target:js_wasm32 -out:web/triangle.wasm -extra-linker-flags:"--export-table --import-memory --initial-memory=%INITIAL_MEMORY_BYTES% --max-memory=%MAX_MEMORY_BYTES%" -vet-cast
+call odin.exe build . -o:speed -target:js_wasm32 -out:web/triangle.wasm -extra-linker-flags:"--export-table --import-memory --initial-memory=%INITIAL_MEMORY_BYTES% --max-memory=%MAX_MEMORY_BYTES%" -vet
 
 
 @REM for /f "delims=" %%i in ('odin.exe root') do set "ODIN_ROOT=%%i"

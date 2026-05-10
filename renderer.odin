@@ -99,7 +99,7 @@ on_device :: proc "c" (status: wgpu.RequestDeviceStatus, device: wgpu.Device, me
         alphaMode   = .Opaque,
     }
     setup_gfx()
-    create_grid(12)
+    create_grid(20)
     create_particles()
     setup_compute()
     create_orbital_camera()

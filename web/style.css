@@ -17,8 +17,8 @@ body {
 	left: 10px;
 	z-index: 1;
 	top: 10px;
-	font-size: 24px;
-	font-family: monospace;
+	font-size: 20px;
+	font-family: sans-serif;
 	color: rgb(255, 255, 255);
 	background-color: rgb(31, 31, 31);
 	width: 80px;
@@ -39,7 +39,7 @@ body {
 }
 
 #resetBtn {
-	left: 100px;
+	left: 95px;
 }
 
 #wgpu-canvas {

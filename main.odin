@@ -1,13 +1,10 @@
 package odin_wgpu
 
 import "base:runtime"
-import "core:fmt"
 import "vendor:wgpu"
-import "core:math/linalg"
-import "core:math"
 
 
-PARTICLES :: 100000
+PARTICLES :: 250000
 
 g: struct {
 	ctx:            runtime.Context,
@@ -15,6 +12,7 @@ g: struct {
 	os:             OS,
     mouse_delta:    [2]i32,
     lmb_down:       bool,
+    shift_down:     bool,
     camera:         Camera,
     r:              Renderer,
     running:        bool,
@@ -55,16 +53,17 @@ get_relative_mouse_movement :: proc() -> [2]i32 {
 create_grid :: proc(size: int) {
     vertices: [dynamic]Vertex
     defer delete(vertices)
-	half := size / 2
-	for i in -half..=half {
-		x := f32(i)
-		z := f32(i)
-        append(&vertices, Vertex {pos = {x, 0, f32(-half)}, col = {0.6, 0.6, 0.6}})
-        append(&vertices, Vertex {pos = {x, 0, f32(half)},  col = {0.6, 0.6, 0.6}})
-
-        append(&vertices, Vertex {pos = {f32(-half), 0, z}, col = {0.6, 0.6, 0.6}})
-        append(&vertices, Vertex {pos = {f32(half), 0, z},  col = {0.6, 0.6, 0.6}})
-	}
+    half := size / 2
+    grid_scale: f32 = 20.0
+    half_f := f32(half) * grid_scale
+    for i in -half..=half {
+        x := f32(i) * grid_scale
+        z := f32(i) * grid_scale
+        append(&vertices, Vertex {pos = {x, 0, -half_f}, col = 0})
+        append(&vertices, Vertex {pos = {x, 0, half_f},  col = 0})
+        append(&vertices, Vertex {pos = {-half_f, 0, z}, col = 0})
+        append(&vertices, Vertex {pos = {half_f, 0, z},  col = 0})
+    }
 
     g.r.vbo = wgpu.DeviceCreateBufferWithDataSlice(g.r.device, &{
         label = "Triangle buf",
@@ -83,12 +82,10 @@ import "core:math/rand"
 create_particles :: proc() {
 	particles := make([]Particle, PARTICLES)
     defer delete(particles)
-
     for i in 0..<PARTICLES {
-        rx := rand.float32_normal(5, 20)
-        ry := rand.float32_normal(10, 50)
-        ry = math.max(ry, 0.1)
-        rz := rand.float32_normal(5, 20)
+        rx := rand.float32_normal(0, 10)
+        ry := rand.float32_normal(20, 40)
+        rz := rand.float32_normal(0, 10)
 
         particles[i] = Particle{
             vel = {rx, ry, rz},

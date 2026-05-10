@@ -19,16 +19,16 @@ Camera :: struct {
 
 create_orbital_camera :: proc() {
     g.camera = {
-        target = {0, 1, 0},
-        distance = 40,
+        target = {0, 130, 0},
+        distance = 220,
         min_distance = 0.2,
-        max_distance = 80,
+        max_distance = 800,
         yaw = 0,
-        pitch = 40,
+        pitch = 0,
         min_pitch = -85,
         max_pitch = 85,
         rotate_speed = 4.5,
-        zoom_speed = 0.01,
+        zoom_speed = 0.1,
         mouse_sense = 0.4,
     }
 }
