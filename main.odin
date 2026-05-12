@@ -4,7 +4,7 @@ import "base:runtime"
 import "vendor:wgpu"
 
 
-PARTICLES :: 200000
+PARTICLES :: 100000
 MODE :: Mode.Particles
 
 Mode :: enum {
