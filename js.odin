@@ -1,7 +1,6 @@
 package odin_wgpu
 
 import "core:sys/wasm/js"
-import "core:fmt"
 import "vendor:wgpu"
 import "base:runtime"
 
@@ -23,6 +22,7 @@ os_init :: proc() {
 	ok =  js.add_window_event_listener(.Key_Up, nil, key_up_callback);	    assert(ok)
 	ok =  js.add_event_listener("playBtn", .Click, nil, pause_callback);    assert(ok)
 	ok =  js.add_event_listener("resetBtn", .Click, nil, reset_callback);   assert(ok)
+	ok =  js.add_event_listener("rotateBtn", .Click, nil, rotate_callback);    assert(ok)
  
     // Mouse controls
 	ok =  js.add_event_listener("wgpu-canvas", .Mouse_Move, nil, mouse_move_callback); assert(ok)
@@ -57,6 +57,11 @@ step :: proc(dt: f32) -> bool {
 @(export)
 get_running_state :: proc() -> bool {
     return g.running
+}
+
+@(export)
+get_rotate_state :: proc() -> bool {
+    return g.rotate
 }
 
 // Query the canvas size in physical pixels (CSS size * device pixel ratio).
@@ -139,18 +144,22 @@ touch_end_callback :: proc(e: js.Event) {
 @(private="file")
 mwheel_callback :: proc(e: js.Event) {
     if g.shift_down {
-        g.camera.target.y -= f32(e.wheel.delta.y) * g.camera.zoom_speed
-        if g.camera.target.y < 0 do g.camera.target.y = 0
+        camera.target.y -= f32(e.wheel.delta.y) * camera.zoom_speed
+        if camera.target.y < 0 do camera.target.y = 0
     } else {
-        g.camera.distance += f32(e.wheel.delta.y) * g.camera.zoom_speed
+        camera.distance += f32(e.wheel.delta.y) * camera.zoom_speed
     }
     clamp_camera()
 }
 
 @(private="file")
 pause_callback :: proc(e: js.Event) {
-    fmt.println(g.camera.distance, g.camera.target, g.camera.pitch)
 	g.running = !g.running
+}
+
+@(private="file")
+rotate_callback :: proc(e: js.Event) {
+	g.rotate = !g.rotate
 }
 
 @(private="file")

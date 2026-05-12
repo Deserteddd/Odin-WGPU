@@ -40,7 +40,7 @@ fn main(
     }
 
     // Apply drag
-    let r = min(1, p.life/20);
+    let r = 0.1;
     let pressure = 1.225;
     let cp = 0.47;
     let a = PI * r * r;

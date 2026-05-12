@@ -42,6 +42,10 @@ body {
 	left: 95px;
 }
 
+#rotateBtn {
+	left: 180px;
+}
+
 #wgpu-canvas {
 	width: 100%;
 	height: 100%;

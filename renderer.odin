@@ -3,11 +3,13 @@ package odin_wgpu
 import "core:fmt"
 import "vendor:wgpu"
 import "core:math/linalg"
+import "core:math"
 
 
-gfx_shader      :: #load("gfx_shader.wgsl")
-compute_shader  :: #load("compute_shader.wgsl")
-particle_shader :: #load("particle_shader.wgsl")
+gfx_base         :: #load("shaders/gfx_base.wgsl")
+gfx_2D           :: #load("shaders/gfx_2D.wgsl")
+gfx_particle     :: #load("shaders/gfx_particle.wgsl")
+compute_particle :: #load("shaders/compute_particle.wgsl")
 
 Renderer :: struct {
 	instance:                   wgpu.Instance,
@@ -20,28 +22,34 @@ Renderer :: struct {
 	gfx_module:                 wgpu.ShaderModule,
 	gfx_pipeline_layout:        wgpu.PipelineLayout,
 	gfx_pipeline:               wgpu.RenderPipeline,
+
 	particle_module:            wgpu.ShaderModule,
 	particle_pipeline_layout:   wgpu.PipelineLayout,
 	particle_pipeline:          wgpu.RenderPipeline,
-    vbo:                        wgpu.Buffer,
-	quad_vbo:                   wgpu.Buffer,
+
+    grid_vbo:                   wgpu.Buffer,
+	cube_vbo:                   wgpu.Buffer,
+    quad_vbo:                   wgpu.Buffer,
     ubo:                        wgpu.Buffer,
     ubo_bind_group:             wgpu.BindGroup,
 
-    compute_module:             wgpu.ShaderModule,
-    compute_ubo:                wgpu.Buffer,
-    compute_pipeline:           wgpu.ComputePipeline,
-    compute_bind_group:         wgpu.BindGroup,
-    particle_buffer:            wgpu.Buffer,
-
+    depth_texture:              Texture,
 
     curr_pass:                  wgpu.RenderPassEncoder,
     curr_encoder:               wgpu.CommandEncoder,
     curr_texture:               wgpu.SurfaceTexture,
-    curr_view:                  wgpu.TextureView
+    curr_view:                  wgpu.TextureView,
+
+    particle: struct {
+        module:             wgpu.ShaderModule,
+        ubo:                wgpu.Buffer,
+        pipeline:           wgpu.ComputePipeline,
+        bind_group:         wgpu.BindGroup,
+        buffer:             wgpu.Buffer,
+    },
+
+    voxel: Voxels
 }
-
-
 
 vec4 :: [4]f32
 vec3 :: [3]f32
@@ -50,22 +58,32 @@ vec2 :: [2]f32
 CameraUniform :: struct {
 	view: linalg.Matrix4x4f32,
 	view_proj: linalg.Matrix4x4f32,
+    cam_pos: vec3
+}
+
+Texture :: struct {
+    t: wgpu.Texture,
+    v: wgpu.TextureView,
+    s: wgpu.Sampler,
 }
 
 Particle :: struct {
-    pos: vec3,
-    _pad: f32,
-    vel: vec3,
-    life: f32,
+    pos:    vec3,
+    _pad0:  f32,
+    vel:    vec3,
+    life:   f32,
 }
 
 QuadVertex :: struct {
-	offset: vec2,
+    offset: vec3,
+    _pad0: f32,
+    normal: vec3,
+    _pad1: f32,
 }
 
 Vertex :: struct {
     pos: vec3,
-    col: vec3,
+    uv: vec2,
 }
 
 on_adapter :: proc "c" (status: wgpu.RequestAdapterStatus, adapter: wgpu.Adapter, message: string, userdata1: rawptr, userdata2: rawptr) {
@@ -100,9 +118,14 @@ on_device :: proc "c" (status: wgpu.RequestDeviceStatus, device: wgpu.Device, me
     }
     setup_gfx()
     create_grid(20)
-    create_particles()
-    setup_compute()
-    create_orbital_camera()
+
+    switch MODE {
+        case .Particles:
+            create_particles()
+            setup_particle()
+        case .Voxels:
+            setup_voxels()
+    }
 
     os_run()
 }
@@ -110,33 +133,44 @@ on_device :: proc "c" (status: wgpu.RequestDeviceStatus, device: wgpu.Device, me
 setup_gfx :: proc() {
     r := &g.r
     wgpu.SurfaceConfigure(r.surface, &r.config)
-    
+    create_depth_texture()
+
+    r.quad_vbo = wgpu.DeviceCreateBufferWithDataSlice(r.device, &{
+        label = "quad buf",
+        usage = {.Vertex}
+    }, QUAD_VERTICES); assert(r.quad_vbo != nil)
+
+    r.cube_vbo = wgpu.DeviceCreateBufferWithDataSlice(r.device, &{
+        label = "cube buf",
+        usage = {.Vertex}
+    }, CUBE_VERTICES); assert(r.cube_vbo != nil)
+
 	r.gfx_module = wgpu.DeviceCreateShaderModule(r.device, &{
 		label = "GFX module",
 		nextInChain = &wgpu.ShaderSourceWGSL{
 			sType = .ShaderSourceWGSL,
-			code  = string(gfx_shader),
+			code  = string(gfx_base),
 		},
 	})
 
     r.ubo = wgpu.DeviceCreateBufferWithDataTyped(r.device, &{
         label = "ubo",
         usage = {.Uniform, .CopyDst}
-    }, CameraUniform{}
-    ); assert(r.ubo != nil)
+    }, CameraUniform{}); assert(r.ubo != nil)
 
     ubo_bind_group_layout := wgpu.DeviceCreateBindGroupLayout(r.device, &{
         label = "ubo_bind_group_layout",
         entryCount = 1,
         entries = raw_data([]wgpu.BindGroupLayoutEntry{{
             binding = 0,
-            visibility = {.Vertex},
+            visibility = {.Vertex, .Fragment},
             buffer = {
-                type = .Uniform,
+                type = .Uniform
             }
         }})
     }); assert(ubo_bind_group_layout != nil)
 
+    
     r.ubo_bind_group = wgpu.DeviceCreateBindGroup(r.device, &{
         label = "ubo_bind_group",
         layout = ubo_bind_group_layout,
@@ -148,6 +182,7 @@ setup_gfx :: proc() {
         }})
     }); assert(r.ubo_bind_group != nil)
 
+    // GFX
     r.gfx_pipeline_layout = wgpu.DeviceCreatePipelineLayout(r.device, &{
         label = "Render pipeline layout",
         bindGroupLayoutCount = 1,
@@ -166,7 +201,7 @@ setup_gfx :: proc() {
                 attributeCount = 2,
                 attributes = raw_data([]wgpu.VertexAttribute{
                     {format = .Float32x3, offset = 0, shaderLocation = 0},
-                    {format = .Float32x3, offset = size_of(vec3), shaderLocation = 1}
+                    {format = .Float32x2, offset = size_of(vec3), shaderLocation = 1}
                 })
             }})
         },
@@ -179,6 +214,11 @@ setup_gfx :: proc() {
                 writeMask = wgpu.ColorWriteMaskFlags_All,
             },
         },
+        depthStencil = &{
+            format = .Depth32Float,
+            depthWriteEnabled = .True,
+            depthCompare = .Less,
+        },
         primitive = {
             topology = .LineList,
 
@@ -189,11 +229,12 @@ setup_gfx :: proc() {
         },
     })
 
+    // Particle
     r.particle_module = wgpu.DeviceCreateShaderModule(r.device, &{
         label = "Particle module",
         nextInChain = &wgpu.ShaderSourceWGSL{
             sType = .ShaderSourceWGSL,
-            code  = string(particle_shader),
+            code  = string(gfx_particle),
         },
     })
 
@@ -213,9 +254,10 @@ setup_gfx :: proc() {
                 {
                     stepMode = .Vertex,
                     arrayStride = size_of(QuadVertex),
-                    attributeCount = 1,
-                    attributes = raw_data([]wgpu.VertexAttribute{
-                        {format = .Float32x2, offset = 0, shaderLocation = 0},
+                    attributeCount = 2,
+                        attributes = raw_data([]wgpu.VertexAttribute{
+                            {format = .Float32x3, offset = 0, shaderLocation = 0},
+                            {format = .Float32x3, offset = size_of(vec4), shaderLocation = 1}
                     }),
                 },
                 {
@@ -223,9 +265,9 @@ setup_gfx :: proc() {
                     arrayStride = size_of(Particle),
                     attributeCount = 3,
                     attributes = raw_data([]wgpu.VertexAttribute{
-                        {format = .Float32x3, offset = 0, shaderLocation = 1},
-                        {format = .Float32x3, offset = size_of(vec4), shaderLocation = 2},
-                        {format = .Float32,   offset = size_of(vec4)+size_of(vec3), shaderLocation = 3},
+                        {format = .Float32x3, offset = 0, shaderLocation = 2},
+                        {format = .Float32x3, offset = size_of(vec4), shaderLocation = 3},
+                        {format = .Float32,   offset = size_of(vec4) + size_of(vec3), shaderLocation = 4},
                     }),
                 },
             }),
@@ -239,6 +281,11 @@ setup_gfx :: proc() {
                 writeMask = wgpu.ColorWriteMaskFlags_All,
             },
         },
+        depthStencil = &{
+            format = .Depth32Float,
+            depthWriteEnabled = .True,
+            depthCompare = .Less,
+        },
         primitive = {
             topology = .TriangleList,
         },
@@ -247,83 +294,122 @@ setup_gfx :: proc() {
             mask  = 0xFFFFFFFF,
         },
     })
-
-    quad_vertices := []QuadVertex{
-        {offset = {-0.5, -0.5}},
-        {offset = { 0.5, -0.5}},
-        {offset = { 0.5,  0.5}},
-        {offset = {-0.5, -0.5}},
-        {offset = { 0.5,  0.5}},
-        {offset = {-0.5,  0.5}},
-    }
-
-    r.quad_vbo = wgpu.DeviceCreateBufferWithDataSlice(r.device, &{
-        label = "Particle quad buf",
-        usage = {.Vertex}
-    }, quad_vertices[:]); assert(r.quad_vbo != nil)
 }
 
-setup_compute :: proc() {
+create_depth_texture :: proc() {
     r := &g.r
-    r.compute_module = wgpu.DeviceCreateShaderModule(r.device, &{
+    if r.depth_texture != {} {
+        wgpu.TextureViewRelease(r.depth_texture.v)
+        wgpu.SamplerRelease(r.depth_texture.s)
+        wgpu.TextureDestroy(r.depth_texture.t)
+    }
+
+    size := wgpu.Extent3D{
+        width  = math.max(r.config.width,  1),
+        height = math.max(r.config.height, 1),
+        depthOrArrayLayers = 1
+    }
+
+    desc := wgpu.TextureDescriptor {
+        label = "Depth texture",
+        size = size,
+        mipLevelCount = 1,
+        sampleCount = 1,
+        dimension = ._2D,
+        format = .Depth32Float,
+        usage = {.RenderAttachment, .TextureBinding}
+    }
+
+    texture := wgpu.DeviceCreateTexture(r.device, &desc)
+
+    view := wgpu.TextureCreateView(texture)
+    sampler := wgpu.DeviceCreateSampler(r.device, &{
+        addressModeU = .ClampToEdge,
+        addressModeV = .ClampToEdge,
+        addressModeW = .ClampToEdge,
+        magFilter = .Linear,
+        minFilter = .Linear,
+        mipmapFilter = .Nearest,
+        compare = .LessEqual,
+        lodMinClamp = 0,
+        lodMaxClamp = 100,
+        maxAnisotropy = 1
+    })
+
+    r.depth_texture = {texture, view, sampler}
+}
+
+setup_particle :: proc() {
+    r := &g.r
+    r.particle.module = wgpu.DeviceCreateShaderModule(r.device, &{
         label = "Compute module",
         nextInChain = &wgpu.ShaderSourceWGSL{
             sType = .ShaderSourceWGSL,
-            code  = string(compute_shader),
+            code  = string(compute_particle),
         },
     })
 
-    r.compute_pipeline = wgpu.DeviceCreateComputePipeline(r.device, &{
+    r.particle.pipeline = wgpu.DeviceCreateComputePipeline(r.device, &{
         label = "Compute pipeline",
         compute = {
-            module = r.compute_module,
+            module = r.particle.module,
             entryPoint = "main"
         }
     })
 
-    r.compute_ubo = wgpu.DeviceCreateBufferWithDataTyped(r.device, &{
+    r.particle.ubo = wgpu.DeviceCreateBufferWithDataTyped(r.device, &{
         label = "compute_ubo",
         usage = {.Uniform, .CopyDst}
-    }, f32(0)); assert(r.compute_ubo != nil)
+    }, f32(0)); assert(r.particle.ubo != nil)
 
-    r.compute_bind_group = wgpu.DeviceCreateBindGroup(r.device, &{
+    r.particle.bind_group = wgpu.DeviceCreateBindGroup(r.device, &{
         label = "Compute bind group",
-        layout = wgpu.ComputePipelineGetBindGroupLayout(r.compute_pipeline, 0),
+        layout = wgpu.ComputePipelineGetBindGroupLayout(r.particle.pipeline, 0),
         entryCount = 2,
         entries = raw_data([]wgpu.BindGroupEntry{
             {
                 binding = 0,
                 offset = 0,
-                size = wgpu.BufferGetSize(r.particle_buffer),
-                buffer = r.particle_buffer,
+                size = wgpu.BufferGetSize(r.particle.buffer),
+                buffer = r.particle.buffer,
             },
             {
                 binding = 1,
                 offset = 0,
-                size = wgpu.BufferGetSize(r.compute_ubo),
-                buffer = r.compute_ubo
+                size = wgpu.BufferGetSize(r.particle.ubo),
+                buffer = r.particle.ubo
             }
         })
-    }); assert(r.compute_bind_group != nil)
+    }); assert(r.particle.bind_group != nil)
 }
 
-r_run_compute :: proc() {
+r_particle_compute :: proc() {
 	r := &g.r
     dt := g.dt
-    particle_count := u32(wgpu.BufferGetSize(g.r.particle_buffer) / size_of(Particle))
+    particle_count := u32(wgpu.BufferGetSize(r.particle.buffer) / size_of(Particle))
 	workgroup_count := (particle_count + 63) / 64
 
 	compute_pass := wgpu.CommandEncoderBeginComputePass(r.curr_encoder)
 
-	wgpu.ComputePassEncoderSetPipeline(compute_pass, r.compute_pipeline)
-	wgpu.QueueWriteBuffer(r.queue, r.compute_ubo, 0, &dt, size_of(f32))
-	wgpu.ComputePassEncoderSetBindGroup(compute_pass, 0, r.compute_bind_group)
+	wgpu.ComputePassEncoderSetPipeline(compute_pass, r.particle.pipeline)
+	wgpu.QueueWriteBuffer(r.queue, r.particle.ubo, 0, &dt, size_of(f32))
+	wgpu.ComputePassEncoderSetBindGroup(compute_pass, 0, r.particle.bind_group)
 	wgpu.ComputePassEncoderDispatchWorkgroups(compute_pass, workgroup_count, 1, 1)
 
 	wgpu.ComputePassEncoderEnd(compute_pass)
 }
 
+r_setup_volume :: proc() {
+    // v := &g.r.volume
+    // device := g.r.device
+  
 
+}
+
+r_volume_compute :: proc() {
+   
+
+}
 
 r_begin_frame :: proc() -> bool {
 	r := &g.r
@@ -358,6 +444,7 @@ r_resize :: proc() {
 	width, height := os_get_framebuffer_size()
 	r.config.width, r.config.height = width, height
 	wgpu.SurfaceConfigure(r.surface, &r.config)
+    create_depth_texture()
 }
 
 
@@ -390,10 +477,16 @@ r_draw_scene :: proc() {
 				view = r.curr_view,
 				loadOp = .Clear,
 				storeOp = .Store,
-				clearValue = {0.2, 0.2, 0.2, 1},
+				clearValue = {0.1, 0.1, 0.1, 1},
 				depthSlice = wgpu.DEPTH_SLICE_UNDEFINED,
 			},
 		}),
+        depthStencilAttachment = &{
+            view = r.depth_texture.v,
+            depthLoadOp = .Clear,
+            depthClearValue = 1,
+            depthStoreOp = .Store,
+        }
 	})
 
 	wgpu.RenderPassEncoderSetPipeline(r.curr_pass, r.gfx_pipeline)
@@ -401,18 +494,23 @@ r_draw_scene :: proc() {
 	proj := create_proj_matrix()
 	view := camera_view_matrix()
 	vp := proj * view
-	ubo := CameraUniform{view = view, view_proj = vp}
+    ubo := CameraUniform{view = view, view_proj = vp, cam_pos = camera_position()}
 	wgpu.QueueWriteBuffer(r.queue, r.ubo, 0, &ubo, size_of(ubo))
 
 	wgpu.RenderPassEncoderSetBindGroup(r.curr_pass, 0, r.ubo_bind_group)
-	wgpu.RenderPassEncoderSetVertexBuffer(r.curr_pass, 0, r.vbo, 0, wgpu.BufferGetSize(r.vbo))
+	wgpu.RenderPassEncoderSetVertexBuffer(r.curr_pass, 0, r.grid_vbo, 0, wgpu.BufferGetSize(r.grid_vbo))
 
-	grid_vertex_count := u32(wgpu.BufferGetSize(r.vbo) / size_of(Vertex))
+	grid_vertex_count := u32(wgpu.BufferGetSize(r.grid_vbo) / size_of(Vertex))
 	wgpu.RenderPassEncoderDraw(r.curr_pass, grid_vertex_count, instanceCount=1, firstVertex=0, firstInstance=0)
 
-    particle_count := u32(wgpu.BufferGetSize(g.r.particle_buffer) / size_of(Particle))
-	wgpu.RenderPassEncoderSetPipeline(r.curr_pass, r.particle_pipeline)
-	wgpu.RenderPassEncoderSetVertexBuffer(r.curr_pass, 0, r.quad_vbo, 0, wgpu.BufferGetSize(r.quad_vbo))
-	wgpu.RenderPassEncoderSetVertexBuffer(r.curr_pass, 1, r.particle_buffer, 0, wgpu.BufferGetSize(r.particle_buffer))
-	wgpu.RenderPassEncoderDraw(r.curr_pass, 6, instanceCount=particle_count, firstVertex=0, firstInstance=0)
+    switch MODE {
+    case .Particles:
+        particle_count := u32(wgpu.BufferGetSize(g.r.particle.buffer) / size_of(Particle))
+        wgpu.RenderPassEncoderSetPipeline(r.curr_pass, r.particle_pipeline)
+        wgpu.RenderPassEncoderSetVertexBuffer(r.curr_pass, 0, r.cube_vbo, 0, wgpu.BufferGetSize(r.cube_vbo))
+        wgpu.RenderPassEncoderSetVertexBuffer(r.curr_pass, 1, r.particle.buffer, 0, wgpu.BufferGetSize(r.particle.buffer))
+        wgpu.RenderPassEncoderDraw(r.curr_pass, 36, instanceCount=particle_count, firstVertex=0, firstInstance=0)
+    case .Voxels:
+        draw_voxels()
+    }
 }

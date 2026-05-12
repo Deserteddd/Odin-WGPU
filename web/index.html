@@ -10,6 +10,7 @@
 		<div class="buttonGroup">
             <button id="playBtn" onclick="this.blur()">Pause</button>
             <button id="resetBtn" onclick="this.blur()">Reset</button>
+            <button id="rotateBtn" onclick="this.blur()">Rotate</button>
 		</div>
 		<canvas id="wgpu-canvas"></canvas>
 		<script type="text/javascript" src="odin.js"></script>
@@ -24,10 +25,16 @@
 
 				await odin.runWasm("triangle.wasm", null, { wgpu: wgpuInterface.getInterface() }, memInterface, /*intSize=8*/);
 
-				const button = document.getElementById('playBtn');
+				const playBtn = document.getElementById('playBtn');
 				setInterval(() => {
 					const isRunning = memInterface.exports.get_running_state();
-					button.textContent = isRunning ? "Pause" : "Play";
+					playBtn.textContent = isRunning ? "Pause" : "Play";
+				}, 16);
+
+				const rotateBtn = document.getElementById('rotateBtn');
+				setInterval(() => {
+					const isRotating = memInterface.exports.get_rotate_state();
+					rotateBtn.textContent = isRotating ? "Stop" : "Rotate";
 				}, 16);
 			})();
 		</script>

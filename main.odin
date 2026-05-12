@@ -4,19 +4,27 @@ import "base:runtime"
 import "vendor:wgpu"
 
 
-PARTICLES :: 250000
+PARTICLES :: 200000
+MODE :: Mode.Particles
 
-g: struct {
+Mode :: enum {
+    Particles,
+    Voxels
+}
+
+g := struct {
 	ctx:            runtime.Context,
     dt:             f32,
 	os:             OS,
     mouse_delta:    [2]i32,
     lmb_down:       bool,
     shift_down:     bool,
-    camera:         Camera,
     r:              Renderer,
     running:        bool,
     reset:          bool,
+    rotate:         bool,
+} {
+    rotate = true
 }
 
 
@@ -38,7 +46,10 @@ frame :: proc() {
 
     r_begin_frame()
 
-	if g.running do r_run_compute()
+	if g.running do switch MODE {
+        case .Particles: r_particle_compute()
+        case .Voxels:    voxel_compute()
+    }
     r_draw_scene()
 
     r_present()
@@ -51,6 +62,7 @@ get_relative_mouse_movement :: proc() -> [2]i32 {
 }
 
 create_grid :: proc(size: int) {
+    r := &g.r
     vertices: [dynamic]Vertex
     defer delete(vertices)
     half := size / 2
@@ -59,22 +71,27 @@ create_grid :: proc(size: int) {
     for i in -half..=half {
         x := f32(i) * grid_scale
         z := f32(i) * grid_scale
-        append(&vertices, Vertex {pos = {x, 0, -half_f}, col = 0})
-        append(&vertices, Vertex {pos = {x, 0, half_f},  col = 0})
-        append(&vertices, Vertex {pos = {-half_f, 0, z}, col = 0})
-        append(&vertices, Vertex {pos = {half_f, 0, z},  col = 0})
+        append(&vertices, Vertex {pos = {x, 0, -half_f}})
+        append(&vertices, Vertex {pos = {x, 0, half_f}})
+        append(&vertices, Vertex {pos = {-half_f, 0, z}})
+        append(&vertices, Vertex {pos = {half_f, 0, z}})
     }
 
-    g.r.vbo = wgpu.DeviceCreateBufferWithDataSlice(g.r.device, &{
+    r.grid_vbo = wgpu.DeviceCreateBufferWithDataSlice(g.r.device, &{
         label = "Triangle buf",
         usage = {.Vertex}
-    }, vertices[:]); assert(g.r.vbo != nil)
+    }, vertices[:]); assert(r.grid_vbo != nil)
 }
 
 maybe_reset :: proc() {
     if !g.reset do return
     defer g.reset = false
-    create_particles()
+    switch MODE {
+    case .Particles:
+        create_particles()
+    case .Voxels:
+        create_voxels()
+    }
     g.dt = 0
 }
 
@@ -83,28 +100,35 @@ create_particles :: proc() {
 	particles := make([]Particle, PARTICLES)
     defer delete(particles)
     for i in 0..<PARTICLES {
-        rx := rand.float32_normal(0, 10)
-        ry := rand.float32_normal(20, 40)
-        rz := rand.float32_normal(0, 10)
+        vx := rand.float32_normal(0, 40)
+        vy := rand.float32_normal(60, 200)
+        vz := rand.float32_normal(0, 40)
+
+        px := rand.float32_normal(0, 1)
+        py := rand.float32_normal(0, 1)
+        pz := rand.float32_normal(0, 1)
+        if py < 0 do py = 0
 
         particles[i] = Particle{
-            vel = {rx, ry, rz},
+            pos = {px, py, pz},
+            vel = {vx, vy, vz},
         }
     }
 
-    if g.r.particle_buffer == nil {
-        g.r.particle_buffer = wgpu.DeviceCreateBufferWithDataSlice(g.r.device, &{
+    if g.r.particle.buffer == nil {
+        g.r.particle.buffer = wgpu.DeviceCreateBufferWithDataSlice(g.r.device, &{
             label = "Particle buffer",
             usage = {.Storage, .Vertex, .CopyDst}
-        }, particles[:]); assert(g.r.particle_buffer != nil)
+        }, particles[:]); assert(g.r.particle.buffer != nil)
     } else {
-        wgpu.QueueWriteBuffer(g.r.queue, g.r.particle_buffer, 0, raw_data(particles[:]), size_of(Particle) * PARTICLES)
+        wgpu.QueueWriteBuffer(g.r.queue, g.r.particle.buffer, 0, raw_data(particles[:]), size_of(Particle) * PARTICLES)
     }
 }
 
 update :: proc() {
     if g.lmb_down do update_camera()
     g.mouse_delta = 0;
+    if g.rotate do camera.yaw += g.dt * 10
     maybe_reset()
 }
 
@@ -114,12 +138,12 @@ finish :: proc() {
     r := &g.r
 	wgpu.RenderPipelineRelease(r.gfx_pipeline)
 	wgpu.RenderPipelineRelease(r.particle_pipeline)
-	wgpu.ComputePipelineRelease(r.compute_pipeline)
+	wgpu.ComputePipelineRelease(r.particle.pipeline)
 	wgpu.PipelineLayoutRelease(r.gfx_pipeline_layout)
 	wgpu.PipelineLayoutRelease(r.particle_pipeline_layout)
 	wgpu.ShaderModuleRelease(r.gfx_module)
 	wgpu.ShaderModuleRelease(r.particle_module)
-	wgpu.ShaderModuleRelease(r.compute_module)
+	wgpu.ShaderModuleRelease(r.particle.module)
 	wgpu.QueueRelease(r.queue)
 	wgpu.DeviceRelease(r.device)
 	wgpu.AdapterRelease(r.adapter)

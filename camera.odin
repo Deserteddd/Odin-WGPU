@@ -3,7 +3,7 @@ package odin_wgpu
 import "core:math/linalg"
 import "core:math"
 
-Camera :: struct {
+camera := struct {
     target:         vec3,
     distance:       f32,
     min_distance:   f32,
@@ -15,54 +15,50 @@ Camera :: struct {
     rotate_speed:   f32,
     zoom_speed:     f32,
     mouse_sense:    f32,
-}
-
-create_orbital_camera :: proc() {
-    g.camera = {
-        target = {0, 130, 0},
-        distance = 220,
-        min_distance = 0.2,
-        max_distance = 800,
-        yaw = 0,
-        pitch = 0,
-        min_pitch = -85,
-        max_pitch = 85,
-        rotate_speed = 4.5,
-        zoom_speed = 0.1,
-        mouse_sense = 0.4,
-    }
+} {
+    target = {0, 100, 0},
+    distance = 220,
+    min_distance = 10,
+    max_distance = 800,
+    yaw = 0,
+    pitch = -10,
+    min_pitch = -85,
+    max_pitch = 85,
+    rotate_speed = 4.5,
+    zoom_speed = 0.1,
+    mouse_sense = 0.4,
 }
 
 update_camera :: proc() {
-    g.camera.yaw   += f32(g.mouse_delta.x) * g.camera.mouse_sense
-    g.camera.pitch += f32(g.mouse_delta.y) * g.camera.mouse_sense
+    camera.yaw   += f32(g.mouse_delta.x) * camera.mouse_sense
+    camera.pitch += f32(g.mouse_delta.y) * camera.mouse_sense
     clamp_camera()
 }
 
 clamp_camera :: proc() {
-    g.camera.distance = math.clamp(g.camera.distance, g.camera.min_distance, g.camera.max_distance)
-    g.camera.pitch = math.clamp(g.camera.pitch, g.camera.min_pitch, g.camera.max_pitch)
+    camera.distance = math.clamp(camera.distance, camera.min_distance, camera.max_distance)
+    camera.pitch = math.clamp(camera.pitch, camera.min_pitch, camera.max_pitch)
 }
 
 camera_position :: proc() -> vec3 {
-    yaw := linalg.to_radians(g.camera.yaw)
-    pitch := linalg.to_radians(g.camera.pitch)
+    yaw := linalg.to_radians(camera.yaw)
+    pitch := linalg.to_radians(camera.pitch)
 
-    radius_xz := g.camera.distance * math.cos(pitch)
+    radius_xz := camera.distance * math.cos(pitch)
     offset := vec3 {
         radius_xz * math.sin(yaw),
-        g.camera.distance * math.sin(pitch),
+        camera.distance * math.sin(pitch),
         radius_xz * math.cos(yaw),
     }
-    return g.camera.target + offset
+    return camera.target + offset
+
 }
 
-
 camera_view_matrix :: proc() -> linalg.Matrix4f32 {
-    distance_matrix := linalg.matrix4_translate_f32(vec3{0, 0, -g.camera.distance})
-    pitch_matrix    := linalg.matrix4_rotate_f32(linalg.to_radians(g.camera.pitch), vec3{1, 0, 0})
-    yaw_matrix      := linalg.matrix4_rotate_f32(linalg.to_radians(g.camera.yaw), vec3{0, 1, 0})
-    target_matrix   := linalg.matrix4_translate_f32(-g.camera.target)
+    distance_matrix := linalg.matrix4_translate_f32(vec3{0, 0, -camera.distance})
+    pitch_matrix    := linalg.matrix4_rotate_f32(linalg.to_radians(camera.pitch), vec3{1, 0, 0})
+    yaw_matrix      := linalg.matrix4_rotate_f32(linalg.to_radians(camera.yaw), vec3{0, 1, 0})
+    target_matrix   := linalg.matrix4_translate_f32(-camera.target)
     return distance_matrix * pitch_matrix * yaw_matrix * target_matrix
 }
 
