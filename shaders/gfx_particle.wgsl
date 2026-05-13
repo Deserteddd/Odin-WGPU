@@ -21,17 +21,18 @@ struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
     @location(0) life: f32,
     @location(1) v_pos: vec3<f32>,
-    @location(2) v_normal: vec3<f32>,
 };
 
 @vertex
 fn vs_main(input: VertexInput) -> VertexOutput {
     var out: VertexOutput;
-    let world = input.pos + input.offset;
+    let right = vec3<f32>(camera.view[0].x, camera.view[1].x, camera.view[2].x);
+    let up    = vec3<f32>(camera.view[0].y, camera.view[1].y, camera.view[2].y);
+    let size = 1.0;
+    let world = input.pos + right * input.offset.x * size + up * input.offset.y * size;
     out.clip_position = camera.view_proj * vec4<f32>(world, 1);
     out.life = input.life;
-    out.v_pos = world;
-    out.v_normal = input.normal;
+    out.v_pos = input.pos;
     return out;
 }
 
@@ -40,9 +41,9 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
     let p = normalize(input.v_pos);
 
     let color = vec3<f32>(
-        0.5 + 0.5 * sin(p.x * 2.0),
-        0.5 + 0.5 * sin(p.y * 2.0 + 2.0),
-        0.5 + 0.5 * sin(p.z * 2.0 + 4.0)
+        0.5 + 0.5 * sin(p.x * 3.0),
+        0.5 + 0.5 * sin(p.y * 3.0 + 2.0),
+        0.5 + 0.5 * sin(p.z * 3.0 + 4.0)
     );
 
     return vec4<f32>(color, 1.0);

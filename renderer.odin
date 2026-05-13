@@ -69,16 +69,14 @@ Texture :: struct {
 
 Particle :: struct {
     pos:    vec3,
-    _pad0:  f32,
+    _pad:   f32,
     vel:    vec3,
     life:   f32,
 }
 
 QuadVertex :: struct {
     offset: vec3,
-    _pad0: f32,
     normal: vec3,
-    _pad1: f32,
 }
 
 Vertex :: struct {
@@ -153,6 +151,7 @@ setup_gfx :: proc() {
 		},
 	})
 
+
     r.ubo = wgpu.DeviceCreateBufferWithDataTyped(r.device, &{
         label = "ubo",
         usage = {.Uniform, .CopyDst}
@@ -195,15 +194,9 @@ setup_gfx :: proc() {
             module     = r.gfx_module,
             entryPoint = "vs_main",
             bufferCount = 1,
-            buffers = raw_data([]wgpu.VertexBufferLayout{{
-                stepMode = .Vertex,
-                arrayStride = size_of(Vertex),
-                attributeCount = 2,
-                attributes = raw_data([]wgpu.VertexAttribute{
-                    {format = .Float32x3, offset = 0, shaderLocation = 0},
-                    {format = .Float32x2, offset = size_of(vec3), shaderLocation = 1}
-                })
-            }})
+            buffers = raw_data([]wgpu.VertexBufferLayout{
+                get_vertex_buffer_layout(Vertex, .Vertex)
+            })
         },
         fragment = &{
             module      = r.gfx_module,
@@ -251,25 +244,8 @@ setup_gfx :: proc() {
             entryPoint = "vs_main",
             bufferCount = 2,
             buffers = raw_data([]wgpu.VertexBufferLayout{
-                {
-                    stepMode = .Vertex,
-                    arrayStride = size_of(QuadVertex),
-                    attributeCount = 2,
-                        attributes = raw_data([]wgpu.VertexAttribute{
-                            {format = .Float32x3, offset = 0, shaderLocation = 0},
-                            {format = .Float32x3, offset = size_of(vec4), shaderLocation = 1}
-                    }),
-                },
-                {
-                    stepMode = .Instance,
-                    arrayStride = size_of(Particle),
-                    attributeCount = 3,
-                    attributes = raw_data([]wgpu.VertexAttribute{
-                        {format = .Float32x3, offset = 0, shaderLocation = 2},
-                        {format = .Float32x3, offset = size_of(vec4), shaderLocation = 3},
-                        {format = .Float32,   offset = size_of(vec4) + size_of(vec3), shaderLocation = 4},
-                    }),
-                },
+                get_vertex_buffer_layout(Vertex, .Vertex),
+                get_vertex_buffer_layout(Particle, .Instance, location_offset=2),
             }),
         },
         fragment = &{
@@ -294,6 +270,44 @@ setup_gfx :: proc() {
             mask  = 0xFFFFFFFF,
         },
     })
+}
+
+import "core:reflect"
+import "base:runtime"
+get_vertex_buffer_layout :: proc(
+    $vertex_type: typeid, 
+    step_mode: wgpu.VertexStepMode,
+    location_offset := 0,
+    loc := #caller_location
+) -> wgpu.VertexBufferLayout {
+    element_info_from_type :: proc(type: ^runtime.Type_Info, loc := #caller_location) -> wgpu.VertexFormat {
+        switch type {
+            case type_info_of(f32):  return .Float32
+            case type_info_of(vec2): return .Float32x2
+            case type_info_of(vec3): return .Float32x3
+            case type_info_of(vec4): return .Float32x4
+            case type_info_of(u32):  return .Uint32
+            case: 
+                fmt.println("GG")
+                panic("Kaikki on pilalla")
+        }
+    }
+
+    fields := reflect.struct_field_types(vertex_type)
+    attributes := make([]wgpu.VertexAttribute, len(fields), context.temp_allocator)
+
+    layout: wgpu.VertexBufferLayout
+    layout.stepMode = step_mode
+    layout.arrayStride = size_of(vertex_type)
+    layout.attributeCount = len(fields)
+
+    accum: int
+    for field, i in fields {
+        attributes[i] = {element_info_from_type(field), u64(accum), u32(i+location_offset)}
+        accum += field.size
+    }
+    layout.attributes = raw_data(attributes)
+    return layout
 }
 
 create_depth_texture :: proc() {
@@ -507,9 +521,9 @@ r_draw_scene :: proc() {
     case .Particles:
         particle_count := u32(wgpu.BufferGetSize(g.r.particle.buffer) / size_of(Particle))
         wgpu.RenderPassEncoderSetPipeline(r.curr_pass, r.particle_pipeline)
-        wgpu.RenderPassEncoderSetVertexBuffer(r.curr_pass, 0, r.cube_vbo, 0, wgpu.BufferGetSize(r.cube_vbo))
+        wgpu.RenderPassEncoderSetVertexBuffer(r.curr_pass, 0, r.quad_vbo, 0, wgpu.BufferGetSize(r.quad_vbo))
         wgpu.RenderPassEncoderSetVertexBuffer(r.curr_pass, 1, r.particle.buffer, 0, wgpu.BufferGetSize(r.particle.buffer))
-        wgpu.RenderPassEncoderDraw(r.curr_pass, 36, instanceCount=particle_count, firstVertex=0, firstInstance=0)
+        wgpu.RenderPassEncoderDraw(r.curr_pass, 6, instanceCount=particle_count, firstVertex=0, firstInstance=0)
     case .Voxels:
         draw_voxels()
     }
