@@ -6,15 +6,145 @@
 		<title>WGPU & Odin</title>
 		<link rel="stylesheet" href="style.css">
 	</head>
-	<body id="body">
-		<div class="buttonGroup">
-            <button id="playBtn" onclick="this.blur()">Pause</button>
-            <button id="resetBtn" onclick="this.blur()">Reset</button>
-            <button id="rotateBtn" onclick="this.blur()">Rotate</button>
-		</div>
+
+<body id="body">
+
+	<div class="buttonGroup">
+         <button id="playBtn" onclick="this.blur()">Pause</button>
+         <button id="resetBtn" onclick="this.blur()">Reset</button>
+         <button id="rotateBtn" onclick="this.blur()">Rotate</button>
+	</div>
+
+    <!-- sidebar -->
+    <aside class="sidebar">
+
+        <nav class="tabs">
+            <button class="tab active" onclick="showTab('eka', this)">Wuuu</button>
+		    <button class="tab" onclick="showTab('toka', this)">Jeeee</button>
+		    <button class="tab" onclick="showTab('kolmas', this)">Yolo</button>
+        </nav>
+
+        <section id="eka" class="tab-content active">
+            <div class="control-section">
+
+                <h2>Particle settings</h2>
+                <div class="control-group">
+
+                    <label>Deviation</label>
+                    <hr style="border: 0; margin: 5px;">
+                    <div class="vector-controls">
+
+                        <div class="control-row">
+                            <span>X</span>
+                            <div class="row-buttons">
+                                <button class="arrow-btn minus">‹</button>
+					            <div class="drag-field" id="devX">0</div>
+					            <button class="arrow-btn plus">›</button>
+                            </div>
+                        </div>
+                        <div class="control-row">
+                            <span>Y</span>
+                            <div class="row-buttons">
+                                <button class="arrow-btn minus">‹</button>
+					            <div class="drag-field" id="devY">0</div>
+					            <button class="arrow-btn plus">›</button>
+                            </div>
+                        </div>
+                        <div class="control-row">
+                            <span>Z</span>
+                            <div class="row-buttons">
+                                <button class="arrow-btn minus">‹</button>
+					            <div class="drag-field" id="devZ">0</div>
+					            <button class="arrow-btn plus">›</button>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Mean</label>
+                    <hr style="border: 0; margin: 5px;">
+                    <div class="vector-controls">
+                        <div class="control-row">
+                            <span>X</span>
+                            <div class="row-buttons">
+                                <button class="arrow-btn minus">‹</button>
+					            <div class="drag-field" id="meanX">0</div>
+					            <button class="arrow-btn plus">›</button>
+                            </div>
+                        </div>
+                        <div class="control-row">
+                            <span>Y</span>
+                            <div class="row-buttons">
+                                <button class="arrow-btn minus">‹</button>
+					            <div class="drag-field" id="meanY">0</div>
+					            <button class="arrow-btn plus">›</button>
+                            </div>
+                        </div>
+                        <div class="control-row">
+                            <span>Z</span>
+                            <div class="row-buttons">
+                                <button class="arrow-btn minus">‹</button>
+					            <div class="drag-field" id="meanZ">0</div>
+					            <button class="arrow-btn plus">›</button>
+                            </div>
+                        </div>
+                        
+                    </div>
+                </div>
+
+
+            </div>
+            <hr style="border: 0; border-top: 1px solid rgb(120, 120, 120); margin: 1em 0;">
+
+            <div class="camera-section">
+                <h2>Camera</h2>
+                <div class="control-row">
+                    <label for="fov">FOV</label>
+                    <div class="row-buttons">
+                        <button class="arrow-btn minus">‹</button>
+					    <div class="drag-field" id="fov">0</div>
+					    <button class="arrow-btn plus">›</button>
+                    </div>
+                </div>
+                <div class="control-row">
+                    <label for="zoom">Zoom</label>
+                    <div class="row-buttons">
+                        <button class="arrow-btn minus">‹</button>
+					    <div class="drag-field" id="zoom">0</div>
+					    <button class="arrow-btn plus">›</button>
+                    </div>
+                </div>
+                <div class="control-row">
+                    <label for="distance">Distance</label>
+                    <div class="row-buttons">
+                        <button class="arrow-btn minus">‹</button>
+					    <div class="drag-field" id="distance">0</div>
+					    <button class="arrow-btn plus">›</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- tähän loppuu oletussivu-->
+
+		<section id="toka" class="tab-content">
+			<p>toka (empty)</p>
+        </section>
+
+		<section id="kolmas" class="tab-content">
+			<p>kolmas (empty)</p>
+        </section>
+
+    </aside>
+
+
 		<canvas id="wgpu-canvas"></canvas>
 		<script type="text/javascript" src="odin.js"></script>
 		<script type="text/javascript" src="wgpu.js"></script>
+		<script type="text/javascript" src="ui.js"></script>
 		<script type="text/javascript">
 			(async () => {
 				const mem = new WebAssembly.Memory({ initial: 2000, maximum: 65536, shared: false });
@@ -38,5 +168,94 @@
 				}, 16);
 			})();
 		</script>
-	</body>
+
+
+
+
+<!-- tab logic -->
+<script>
+function showTab(id, el) {
+
+	document.querySelectorAll('.tab-content')
+		.forEach(e => e.classList.remove('active'));
+
+	document.querySelectorAll('.tab')
+		.forEach(e => e.classList.remove('active'));
+
+	document.getElementById(id).classList.add('active');
+	el.classList.add('active');
+}
+</script>
+
+
+
+<!-- nuolet -->
+
+<script>
+
+document.querySelectorAll(".control-row").forEach(group => {
+
+	const field = group.querySelector(".drag-field");
+
+	if (!field) return;
+
+	const minus = group.querySelector(".minus");
+	const plus = group.querySelector(".plus");
+
+	function holdButton(callback) {
+
+		let interval;
+
+		return {
+			start() {
+				callback();
+				interval = setInterval(callback, 120);
+			},
+
+			stop() {
+				clearInterval(interval);
+			}
+		};
+	}
+
+	const minusHold = holdButton(() => {
+		let value = getFieldValue(field);
+		value--;
+		setFieldValue(field, value);
+	});
+
+	const plusHold = holdButton(() => {
+		let value = getFieldValue(field);
+		value++;
+		setFieldValue(field, value);
+	});
+
+	/* minus */
+
+	minus?.addEventListener("mousedown", minusHold.start);
+
+	minus?.addEventListener("mouseup", minusHold.stop);
+	minus?.addEventListener("mouseleave", minusHold.stop);
+
+	/* plus */
+
+	plus?.addEventListener("mousedown", plusHold.start);
+
+	plus?.addEventListener("mouseup", plusHold.stop);
+	plus?.addEventListener("mouseleave", plusHold.stop);
+
+	/* mobile */
+
+	minus?.addEventListener("touchstart", minusHold.start);
+	minus?.addEventListener("touchend", minusHold.stop);
+
+	plus?.addEventListener("touchstart", plusHold.start);
+	plus?.addEventListener("touchend", plusHold.stop);
+
+});
+
+</script>
+
+
+</body>
 </html>
