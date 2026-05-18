@@ -4,7 +4,7 @@ body {
 	height: 100%;
 	overflow: hidden;
 
-	background: rgb(51, 51, 51);
+	background: rgb(26, 26, 26);
 
 	font-family: monospace;
 	color: white;
@@ -14,12 +14,30 @@ body {
 	position: relative;
 }
 
+h3 {
+	position: fixed;
+
+	bottom: 20px;
+	right: 20px;
+
+	font-size: 13px;
+	margin: 0;
+}
+
 /* canvas */
 
 #wgpu-canvas {
-	width: 80%;
+	width: calc(100vw - clamp(390px, 20vw, 520px));
 	height: 100%;
 	display: block;
+
+	transition: width 220ms ease;
+}
+
+/* when sidebar hidden */
+
+#hide-sidebar:checked ~ #wgpu-canvas {
+	width: 100vw;
 }
 
 /* floating ui */
@@ -68,13 +86,51 @@ body {
 #resetBtn  { left: 95px; }
 #rotateBtn { left: 180px; }
 
+/* sidebar toggle */
+
+#hide-sidebar {
+	display: none;
+}
+
+.sidebar-toggle {
+	position: fixed;
+
+	top: 12px;
+	right: 20px;
+
+	z-index: 20;
+
+	padding: 4px 8px;
+
+	background: rgb(31, 31, 31);
+	border: 1px solid rgb(122, 122, 122);
+
+	cursor: pointer;
+	user-select: none;
+}
+
+/* animate sidebar */
+
+.sidebar {
+	transition: transform 220ms ease;
+}
+
+/* hidden state */
+
+#hide-sidebar:checked ~ .sidebar {
+	transform: translateX(100%);
+}
+
+
+
+
 /* sidebar */
 
 .sidebar {
 	top: 0;
 	right: 0;
 
-	width: 20%;
+	width: clamp(390px, 20vw, 520px);
 	height: 100vh;
 
 	display: flex;
@@ -161,12 +217,12 @@ h2 {
 	display: flex;
 	align-items: center;
 	gap: 2px;
-    padding-left: 10px;
+    padding-left: 5px;
 }
 
 .vector-controls .drag-field {
 	width: 45px;
-	height: 26px;
+	height: 25px;
 	flex: unset;
     font-size: 12px;
 }
@@ -187,19 +243,19 @@ h2 {
 }
 
 .vector-controls .arrow-btn {
-	width: 15px;
-	height: 18px;
+	width: 17px;
+	height: 27px;
 }
 
 .vector-controls .control-row .row-buttons {
-    gap: 1px;
+    gap: 2px;
     align-items: center;
     display: flex;
     padding-left: 5px;
 }
 
 .camera-section .control-row .row-buttons {
-    gap: 3px;
+    gap: 2px;
     align-items: center;
     display: flex;
     padding-left: 30px;
@@ -223,15 +279,15 @@ h2 {
 
 .arrow-btn {
 	width: 17px;
-	height: 21px;
+	height: 27px;
 
-	border: none;
+	border: 1px solid rgb(90, 90, 90);
 	border-radius: 0px;
 
 	background: rgb(60, 60, 60);
 
 	font: inherit;
-	font-size: 12px;
+	font-size: 10px;
 	color: inherit;
 
 	cursor: pointer;
@@ -269,4 +325,41 @@ h2 {
 
 	cursor: ew-resize;
 	user-select: none;
+}
+
+.drag-field input {
+	width: 100%;
+	height: 100%;
+
+	background: transparent;
+	border: none;
+	outline: none;
+
+	color: white;
+	font: inherit;
+	text-align: center;
+}
+/* piilota nuolet */
+.drag-field input::-webkit-outer-spin-button,
+.drag-field input::-webkit-inner-spin-button {
+	-webkit-appearance: none;
+	margin: 0;
+}
+
+.drag-field input[type="number"] {
+	-moz-appearance: textfield;
+	appearance: textfield;
+}
+
+/* fullscreen mode */
+
+body.sim-fullscreen .sidebar,
+body.sim-fullscreen .buttonGroup,
+body.sim-fullscreen .sidebar-toggle {
+	display: none;
+}
+
+body.sim-fullscreen #wgpu-canvas {
+	width: 100vw;
+	height: 100vh;
 }
