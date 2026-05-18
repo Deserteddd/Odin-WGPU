@@ -29,10 +29,7 @@ os_init :: proc() {
 	ok =  js.add_event_listener("wgpu-canvas", .Mouse_Down, nil, mouse_down_callback); assert(ok)
 	ok =  js.add_event_listener("wgpu-canvas", .Mouse_Up, nil, mouse_up_callback);     assert(ok)
 	ok =  js.add_event_listener("wgpu-canvas", .Wheel, nil, mwheel_callback);          assert(ok)
-    // Touch screen
-	ok =  js.add_event_listener("wgpu-canvas", .Touch_Start, nil, touch_start_callback);     assert(ok)
-	ok =  js.add_event_listener("wgpu-canvas", .Touch_End, nil, touch_end_callback); assert(ok)
-	ok =  js.add_event_listener("wgpu-canvas", .Touch_Move, nil, touch_move_callback); assert(ok)
+    
 }
 
 
@@ -53,6 +50,28 @@ step :: proc(dt: f32) -> bool {
 	frame()
 	return true
 }
+
+@(export)
+set_zoom :: proc(v: f32) {
+	camera.distance = v
+}
+
+@(export)
+get_zoom :: proc() -> f32 {
+	return camera.distance
+}
+
+@(export)
+set_dev :: proc(x,y,z:f32) {
+	g.params.dev = {x,y,z}
+}
+
+@(export)
+set_mean :: proc(x,y,z:f32) {
+	g.params.mean = {x,y,z}
+}
+
+
 
 @(export)
 get_running_state :: proc() -> bool {
@@ -118,28 +137,7 @@ mouse_up_callback :: proc(e: js.Event) {
 	g.lmb_down = 0 in e.mouse.buttons
 }
 
-@(private="file")
-touch_start_callback :: proc(e: js.Event) {
-    g.lmb_down = true
-	touch_last_pos = {i32(e.touch.client.x), i32(e.touch.client.y)}
-	touch_last_pos_valid = true
-}
 
-@(private="file")
-touch_move_callback :: proc(e: js.Event) {
-	current := [2]i32{i32(e.touch.client.x), i32(e.touch.client.y)}
-	if touch_last_pos_valid {
-		g.mouse_delta += {current[0] - touch_last_pos[0], current[1] - touch_last_pos[1]}
-	}
-	touch_last_pos = current
-	touch_last_pos_valid = true
-}
-
-@(private="file")
-touch_end_callback :: proc(e: js.Event) {
-    g.lmb_down = false
-	touch_last_pos_valid = false
-}
 
 @(private="file")
 mwheel_callback :: proc(e: js.Event) {

@@ -23,8 +23,18 @@ g := struct {
     running:        bool,
     reset:          bool,
     rotate:         bool,
+    params:         SimParams
 } {
-    rotate = true
+    rotate = true,
+    params = {
+        dev = {20, 50, 20},
+        mean = {20, 50, 20}
+    }
+}
+
+SimParams :: struct {
+    dev:    vec3,
+    mean:   vec3
 }
 
 
@@ -99,10 +109,12 @@ import "core:math/rand"
 create_particles :: proc() {
 	particles := make([]Particle, PARTICLES)
     defer delete(particles)
+    dev := g.params.dev
+    mean := g.params.mean
     for i in 0..<PARTICLES {
-        vx := rand.float32_normal(0, 40)
-        vy := rand.float32_normal(60, 200)
-        vz := rand.float32_normal(0, 40)
+        vx := rand.float32_normal(mean.x, dev.x)
+        vy := rand.float32_normal(mean.y, dev.y)
+        vz := rand.float32_normal(mean.z, dev.z)
 
         px := rand.float32_normal(0, 1)
         py := rand.float32_normal(0, 1)

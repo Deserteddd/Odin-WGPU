@@ -15,14 +15,17 @@
          <button id="rotateBtn" onclick="this.blur()">Rotate</button>
 	</div>
 
+	<input type="checkbox" id="hide-sidebar">
+	<label for="hide-sidebar" class="sidebar-toggle">Hide sidebar</label>
+
     <!-- sidebar -->
     <aside class="sidebar">
-
+<!-- piilossa
         <nav class="tabs">
             <button class="tab active" onclick="showTab('eka', this)">Wuuu</button>
 		    <button class="tab" onclick="showTab('toka', this)">Jeeee</button>
 		    <button class="tab" onclick="showTab('kolmas', this)">Yolo</button>
-        </nav>
+        </nav> -->
 
         <section id="eka" class="tab-content active">
             <div class="control-section">
@@ -109,22 +112,25 @@
                     </div>
                 </div>
                 <div class="control-row">
-                    <label for="zoom">Zoom</label>
+                    <label for="zoom">Distance</label>
                     <div class="row-buttons">
                         <button class="arrow-btn minus">‹</button>
-					    <div class="drag-field" id="zoom">0</div>
+					    <div class="drag-field" id="zoom">1</div>
 					    <button class="arrow-btn plus">›</button>
                     </div>
                 </div>
                 <div class="control-row">
-                    <label for="distance">Distance</label>
+                    <label for="distance">Height</label>
                     <div class="row-buttons">
                         <button class="arrow-btn minus">‹</button>
-					    <div class="drag-field" id="distance">0</div>
+					    <div class="drag-field" id="distance">5</div>
 					    <button class="arrow-btn plus">›</button>
                     </div>
                 </div>
             </div>
+
+			<hr style="border: 0; border-top: 1px solid rgb(120, 120, 120); margin: 1em 0;">
+			<h3>Press 'F' to enter/exit fullscreen mode</h3>
         </section>
 
 
@@ -148,12 +154,22 @@
 		<script type="text/javascript">
 			(async () => {
 				const mem = new WebAssembly.Memory({ initial: 2000, maximum: 65536, shared: false });
-				const memInterface = new odin.WasmMemoryInterface();
+
+				window.memInterface = new odin.WasmMemoryInterface();
+
+				const memInterface = window.memInterface;
 				memInterface.setMemory(mem);
 
 				const wgpuInterface = new odin.WebGPUInterface(memInterface);
 
 				await odin.runWasm("triangle.wasm", null, { wgpu: wgpuInterface.getInterface() }, memInterface, /*intSize=8*/);
+
+				function syncFromCamera() {
+					const zoomEl = document.getElementById("zoom");
+					setFieldValue(zoomEl, memInterface.exports.get_zoom());
+				}
+
+				syncFromCamera();
 
 				const playBtn = document.getElementById('playBtn');
 				setInterval(() => {

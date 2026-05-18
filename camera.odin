@@ -15,10 +15,11 @@ camera := struct {
     rotate_speed:   f32,
     zoom_speed:     f32,
     mouse_sense:    f32,
+    fov:            f32
 } {
     target = {0, 100, 0},
     distance = 220,
-    min_distance = 10,
+    min_distance = 1,
     max_distance = 800,
     yaw = 0,
     pitch = -10,
@@ -27,6 +28,7 @@ camera := struct {
     rotate_speed = 4.5,
     zoom_speed = 0.1,
     mouse_sense = 0.4,
+    fov = 90
 }
 
 update_camera :: proc() {
@@ -65,7 +67,7 @@ camera_view_matrix :: proc() -> linalg.Matrix4f32 {
 create_proj_matrix :: proc() -> linalg.Matrix4f32 {
     aspect := f32(g.r.config.width) / f32(g.r.config.height)
     return linalg.matrix4_perspective_f32(
-        linalg.to_radians(f32(90)), 
+        linalg.to_radians(f32(camera.fov)), 
         aspect, 
         0.01, 
         1000
