@@ -31,6 +31,8 @@ Renderer :: struct {
 	cube_vbo:                   wgpu.Buffer,
     quad_vbo:                   wgpu.Buffer,
     ubo:                        wgpu.Buffer,
+    particle_ubo: wgpu.Buffer,
+    particle_size: f32,
     ubo_bind_group:             wgpu.BindGroup,
 
     depth_texture:              Texture,
@@ -60,6 +62,13 @@ CameraUniform :: struct {
 	view_proj: linalg.Matrix4x4f32,
     cam_pos: vec3
 }
+
+ParticleUniform :: struct {
+	size: f32,
+	_pad0: f32,
+	_pad1: f32,
+	_pad2: f32,
+} /* hmmm */
 
 Texture :: struct {
     t: wgpu.Texture,
@@ -157,29 +166,53 @@ setup_gfx :: proc() {
         usage = {.Uniform, .CopyDst}
     }, CameraUniform{}); assert(r.ubo != nil)
 
-    ubo_bind_group_layout := wgpu.DeviceCreateBindGroupLayout(r.device, &{
+    r.particle_ubo = wgpu.DeviceCreateBufferWithDataTyped(r.device, &{
+        label = "particle ubo",
+        usage = {.Uniform, .CopyDst},
+    }, ParticleUniform{size = 1.0}) /* uus */
+
+    ubo_bind_group_layout := wgpu.DeviceCreateBindGroupLayout(r.device, &{ /* muok*/
         label = "ubo_bind_group_layout",
-        entryCount = 1,
-        entries = raw_data([]wgpu.BindGroupLayoutEntry{{
-            binding = 0,
-            visibility = {.Vertex, .Fragment},
-            buffer = {
-                type = .Uniform
-            }
-        }})
-    }); assert(ubo_bind_group_layout != nil)
+
+        entryCount = 2,
+        entries = raw_data([]wgpu.BindGroupLayoutEntry{
+            {
+                binding = 0,
+                visibility = {.Vertex, .Fragment},
+                buffer = {
+                    type = .Uniform,
+                },
+            },
+            {
+                binding = 1,
+                visibility = {.Vertex, .Fragment},
+                buffer = {
+                    type = .Uniform,
+                },
+            },
+        }),
+    })
+    ; assert(ubo_bind_group_layout != nil)
 
     
     r.ubo_bind_group = wgpu.DeviceCreateBindGroup(r.device, &{
         label = "ubo_bind_group",
         layout = ubo_bind_group_layout,
-        entryCount = 1,
-        entries = raw_data([]wgpu.BindGroupEntry{{
-            binding = 0,
-            buffer = r.ubo,
-            size = wgpu.BufferGetSize(r.ubo)
-        }})
-    }); assert(r.ubo_bind_group != nil)
+
+        entryCount = 2,
+        entries = raw_data([]wgpu.BindGroupEntry{
+            {
+                binding = 0,
+                buffer = r.ubo,
+                size = wgpu.BufferGetSize(r.ubo),
+            },
+            {
+                binding = 1,
+                buffer = r.particle_ubo,
+                size = wgpu.BufferGetSize(r.particle_ubo),
+            },
+        }),
+    }); assert(r.ubo_bind_group != nil) /* tää */
 
     // GFX
     r.gfx_pipeline_layout = wgpu.DeviceCreatePipelineLayout(r.device, &{

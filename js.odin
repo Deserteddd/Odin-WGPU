@@ -4,6 +4,9 @@ import "core:sys/wasm/js"
 import "vendor:wgpu"
 import "base:runtime"
 
+import "core:math"
+import "core:math/linalg" /* lisätty */
+
 OS :: struct {
 	initialized: bool,
     clipboard: [dynamic]byte
@@ -71,6 +74,53 @@ set_mean :: proc(x,y,z:f32) {
 	g.params.mean = {x,y,z}
 }
 
+/* tässä uus */
+@(export)
+set_height :: proc(v: f32) {
+    pitch := linalg.to_radians(camera.pitch)
+    camera.target.y =
+        v - camera.distance * math.sin(pitch)
+}
+
+@(export)
+get_height :: proc() -> f32 {
+    pitch := linalg.to_radians(camera.pitch)
+    return camera.target.y +
+           camera.distance * math.sin(pitch)
+}
+
+@(export)
+get_fov :: proc() -> f32 {
+	return camera.fov
+}
+
+@(export)
+set_fov :: proc(v: f32) {
+	camera.fov = clamp(v, 40, 140)
+}
+
+@(export)
+set_particle_size :: proc(v: f32) {
+	r := &g.r
+
+	r.particle_size = v
+
+	wgpu.QueueWriteBuffer(
+		r.queue,
+		r.particle_ubo,
+		0,
+		&ParticleUniform{
+			size = v,
+		},
+		size_of(ParticleUniform),
+	)
+}
+
+@(export)
+get_particle_size :: proc() -> f32 {
+	return g.r.particle_size
+}
+/*!!*/
 
 
 @(export)
@@ -143,7 +193,7 @@ mouse_up_callback :: proc(e: js.Event) {
 mwheel_callback :: proc(e: js.Event) {
     if g.shift_down {
         camera.target.y -= f32(e.wheel.delta.y) * camera.zoom_speed
-        if camera.target.y < 0 do camera.target.y = 0
+        /* if camera.target.y < 0 do camera.target.y = 0 */
     } else {
         camera.distance += f32(e.wheel.delta.y) * camera.zoom_speed
     }

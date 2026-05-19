@@ -98,10 +98,22 @@
                 </div>
 
 
+
             </div>
-            <hr style="border: 0; border-top: 1px solid rgb(120, 120, 120); margin: 1em 0;">
 
             <div class="camera-section">
+
+					<div class="control-row">
+						<label for="p_size">Particle size</label>
+						<div class="row-buttons">
+							<button class="arrow-btn minus">‹</button>
+							<div class="drag-field" id="p_size">0</div>
+							<button class="arrow-btn plus">›</button>
+						</div>
+					</div>
+
+					 <hr style="border: 0; border-top: 1px solid rgb(120, 120, 120); margin-top: 30px; margin-bottom: 30px;">
+
                 <h2>Camera</h2>
                 <div class="control-row">
                     <label for="fov">FOV</label>
@@ -123,13 +135,13 @@
                     <label for="distance">Height</label>
                     <div class="row-buttons">
                         <button class="arrow-btn minus">‹</button>
-					    <div class="drag-field" id="distance">5</div>
+					    <div class="drag-field" id="height">5</div>
 					    <button class="arrow-btn plus">›</button>
                     </div>
                 </div>
             </div>
 
-			<hr style="border: 0; border-top: 1px solid rgb(120, 120, 120); margin: 1em 0;">
+			<hr style="border: 0; border-top: 1px solid rgb(120, 120, 120); margin-top: 30px;">
 			<h3>Press 'F' to enter/exit fullscreen mode</h3>
         </section>
 
@@ -167,6 +179,12 @@
 				function syncFromCamera() {
 					const zoomEl = document.getElementById("zoom");
 					setFieldValue(zoomEl, memInterface.exports.get_zoom());
+
+					const heightEl = document.getElementById("height");
+					setFieldValue(heightEl, memInterface.exports.get_height()); /* tää */
+
+					const fovEl = document.getElementById("fov");
+					setFieldValue(fovEl, memInterface.exports.get_fov()); /* tää */
 				}
 
 				syncFromCamera();

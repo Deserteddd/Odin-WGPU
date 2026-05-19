@@ -17,7 +17,7 @@ camera := struct {
     mouse_sense:    f32,
     fov:            f32
 } {
-    target = {0, 100, 0},
+    target = {0, 115, 0},
     distance = 220,
     min_distance = 1,
     max_distance = 800,
