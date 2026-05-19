@@ -1,5 +1,20 @@
+function clamp(v, min, max) {
+	return Math.max(min, Math.min(max, v));
+}
 
 function setFieldValue(field, value) {
+
+	switch (field.id) {
+
+		case "fov":
+			value = clamp(value, 40, 140);
+			break;
+
+		case "zoom":
+			value = clamp(value, 1, 500);
+			break;
+	}
+
 	field.dataset.value = value;
 	field.textContent = Number(value).toFixed(2);
 
@@ -7,6 +22,7 @@ function setFieldValue(field, value) {
 	if (!o) return;
 
 	switch (field.id) {
+
 		case "devX":
 		case "devY":
 		case "devZ": {
@@ -31,6 +47,18 @@ function setFieldValue(field, value) {
 
 		case "zoom":
 			o.set_zoom(value);
+			break;
+
+		case "height":
+			o.set_height(value);
+			break;
+
+		case "fov":
+			o.set_fov(value);
+			break;
+		
+		case "p_size":
+			o.set_particle_size(value);
 			break;
 	}
 }
@@ -88,10 +116,13 @@ function makeDragField(id, startValue = 1, sensitivity = 10) {
 		}, { once: true });
 	});
 
-	document.addEventListener("mousemove", (e) => {
+	document.addEventListener("mousemove", (e) => { /* muok */
 
 		if (!dragging) return;
 		if (document.pointerLockElement !== el) return;
+
+		/* ignore jumps */
+		if (Math.abs(e.movementX) > 100) return;
 
 		let value = getFieldValue(el);
 
@@ -223,4 +254,5 @@ makeDragField("meanZ", 20, 0.1);
 
 makeDragField("fov", 90, 0.2);
 makeDragField("zoom", 220, 0.05);
-makeDragField("distance", 1, 0.1);
+makeDragField("height", 115, 0.1); /* muok */
+makeDragField("p_size", 1.0, 0.01);

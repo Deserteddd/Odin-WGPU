@@ -20,8 +20,9 @@ h3 {
 	bottom: 20px;
 	right: 20px;
 
-	font-size: 13px;
+	font-size: 16px;
 	margin: 0;
+	font-weight: normal;
 }
 
 /* canvas */
@@ -130,7 +131,7 @@ h3 {
 	top: 0;
 	right: 0;
 
-	width: clamp(390px, 20vw, 520px);
+	width: clamp(390px, 20vw, 410px);
 	height: 100vh;
 
 	display: flex;
@@ -202,7 +203,9 @@ br {
 
 h2 {
 	margin-bottom: 16px;
-	font-size: 14px;
+	font-size: 16px;
+	font-weight: normal;
+	margin-left: 5px;
 }
 
 /* particle vector & camera controls */
@@ -362,4 +365,10 @@ body.sim-fullscreen .sidebar-toggle {
 body.sim-fullscreen #wgpu-canvas {
 	width: 100vw;
 	height: 100vh;
+}
+
+.camera-section hr {
+    margin-left: -13px;
+    margin-right: -13px;
+    width: calc(100% + 26px);
 }

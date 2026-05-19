@@ -8,6 +8,16 @@ struct CameraUniform {
 @group(0) @binding(0)
 var<uniform> camera: CameraUniform;
 
+struct ParticleUniform {
+    size: f32,
+    _pad0: f32,
+    _pad1: f32,
+    _pad2: f32,
+};
+
+@group(0) @binding(1)
+var<uniform> particle: ParticleUniform;
+
 
 struct VertexInput {
     @location(0) offset: vec3<f32>,
@@ -28,7 +38,7 @@ fn vs_main(input: VertexInput) -> VertexOutput {
     var out: VertexOutput;
     let right = vec3<f32>(camera.view[0].x, camera.view[1].x, camera.view[2].x);
     let up    = vec3<f32>(camera.view[0].y, camera.view[1].y, camera.view[2].y);
-    let size = 1.0;
+    let size = particle.size;
     let world = input.pos + right * input.offset.x * size + up * input.offset.y * size;
     out.clip_position = camera.view_proj * vec4<f32>(world, 1);
     out.life = input.life;
